@@ -1,0 +1,576 @@
+{
+  "name": "AI Support Chatbot: website + WhatsApp, answers from your FAQ sheet",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "mode": "hostedChat",
+        "initialMessages": "Hi there! 👋\nI can answer questions about opening hours, prices, services and bookings. How can I help?",
+        "options": {
+          "title": "Ask us anything",
+          "subtitle": "We usually answer instantly",
+          "inputPlaceholder": "Type your question...",
+          "responseMode": "lastNode",
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "ac53c3cb-b593-5338-8414-7296f3595223",
+      "name": "Website chat",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "5c1f7a2e-3b4d-4e6f-8a9b-0c1d2e3f4001"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "id": "4d0fef29-8655-5551-91ab-1b839984b6df",
+      "name": "WhatsApp message",
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        220
+      ],
+      "webhookId": "5c1f7a2e-3b4d-4e6f-8a9b-0c1d2e3f4002"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"business_name\": \"Acme Dental\",\n    \"assistant_name\": \"Ava\",\n    \"what_we_do\": \"Family dental clinic: check-ups, cleaning, whitening, fillings, emergency appointments\",\n    \"tone\": \"warm, clear and concise\",\n    \"booking_link\": \"https://cal.com/your-business\",\n    \"phone_for_humans\": \"(555) 010-0000\",\n\n    \"knowledge_sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"knowledge_tab\": \"Knowledge\",\n    \"conversations_tab\": \"Conversations\",\n\n    \"owner_email\": \"owner@example.com\",\n    \"whatsapp_phone_number_id\": \"PASTE_YOUR_WHATSAPP_PHONE_NUMBER_ID\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "45e16fdd-4ef7-5deb-88aa-d78a4b995e0c",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// One shape for both channels: { channel, session_id, text, reply_to, customer_name }\nconst j = $input.first().json;\nif (j.action && j.action !== 'sendMessage') return []; // e.g. the chat widget asking to reload an old session\nif (j.chatInput !== undefined) {\n  return [{ json: { channel: 'website', session_id: 'web-' + j.sessionId, text: String(j.chatInput || '').slice(0, 2000), reply_to: '', customer_name: '' } }];\n}\nconst msg = (j.messages || [])[0];\nif (!msg) return []; // delivery/read receipts: nothing to answer\nconst contact = (j.contacts || [])[0] || {};\nlet text = '';\nif (msg.type === 'text') text = msg.text?.body || '';\nelse if (msg.type === 'button') text = msg.button?.text || '';\nelse if (msg.type === 'interactive') text = msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || '';\nelse text = `(The customer sent a ${msg.type} message, which you cannot open. Politely ask them to type their question.)`;\nreturn [{ json: { channel: 'whatsapp', session_id: 'wa-' + msg.from, text: text.slice(0, 2000), reply_to: msg.from, customer_name: contact.profile?.name || '' } }];"
+      },
+      "id": "1be92c9d-1180-570f-836b-e3351efc525e",
+      "name": "Read the message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.knowledge_sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.knowledge_tab }}"
+        },
+        "filtersUI": {},
+        "options": {}
+      },
+      "id": "7109426d-efc2-5ac9-a83b-8d2f3774f89a",
+      "name": "Load FAQ sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        680,
+        100
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Turns every row of the FAQ sheet into \"Topic: answer\" lines for the assistant.\nconst lines = [];\nfor (const { json: row } of $input.all()) {\n  const values = Object.entries(row).filter(([k, v]) => k !== 'row_number' && String(v ?? '').trim() !== '');\n  if (!values.length) continue;\n  lines.push(values.map(([k, v]) => String(v).trim()).join(': '));\n}\nreturn [{ json: { ...$('Read the message').first().json, knowledge: lines.join('\\n') || '(The FAQ sheet is empty.)' } }];"
+      },
+      "id": "12ba07c6-51ad-5926-90ec-04177feb3301",
+      "name": "Prepare FAQ",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "options": {
+          "systemMessage": "=You are {{ $('Settings').first().json.config.assistant_name }}, the assistant for {{ $('Settings').first().json.config.business_name }} ({{ $('Settings').first().json.config.what_we_do }}).\nYou are chatting with a customer on the {{ $json.channel }}{{ $json.customer_name ? ' (their name is ' + $json.customer_name + ')' : '' }}. Today is {{ $now.toFormat('cccc d LLLL yyyy') }}.\n\nFACTS YOU MAY USE (from the business's FAQ sheet):\n{{ $json.knowledge }}\n\nBooking link: {{ $('Settings').first().json.config.booking_link }}\nPhone for a human: {{ $('Settings').first().json.config.phone_for_humans }}\n\nHOW TO ANSWER\n- Tone: {{ $('Settings').first().json.config.tone }}. Keep answers short: 1-3 sentences, plain text, no markdown headings.\n- Only use the facts above. If the answer is not there, say you're not sure and offer to have a person get back to them. Never invent prices, availability, medical/legal advice, discounts or promises.\n- When someone wants to book, give the booking link.\n- Reply in the language the customer writes in.\n\nHANDING OVER TO A HUMAN\nWhen the customer asks for a person, a call back, a quote you can't give, or is unhappy:\n1. Ask for their name and best phone number or email (if you don't have them yet).\n2. Once you have a contact, call the tool save_contact_request AND the tool notify_owner, then tell the customer someone will get back to them soon.\nNever call the tools without a phone number or email.",
+          "maxIterations": 6
+        }
+      },
+      "id": "335cc537-ef1c-5571-92b8-5094e8b18c80",
+      "name": "AI assistant",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1140,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "34f0e5df-6e5f-5378-b97d-b718388938bc",
+      "name": "OpenAI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1020,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Read the message').first().json.session_id }}",
+        "contextWindowLength": 12
+      },
+      "id": "05fedb05-adfb-5662-abf0-2e2a27eac051",
+      "name": "Conversation memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1160,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Saves a customer's request for a human to follow up. Use only once you have their phone number or email.",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.knowledge_sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.conversations_tab }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "received_at": "={{ $now.toISO() }}",
+            "channel": "={{ $('Read the message').first().json.channel }}",
+            "session_id": "={{ $('Read the message').first().json.session_id }}",
+            "name": "={{ $fromAI('name', 'Customer name, or empty if unknown', 'string') }}",
+            "contact": "={{ $fromAI('contact', 'Phone number or email the customer gave', 'string') }}",
+            "reason": "={{ $fromAI('reason', 'One of: callback, booking, quote, complaint, other', 'string') }}",
+            "summary": "={{ $fromAI('summary', 'One or two sentences on what the customer needs', 'string') }}",
+            "status": "new"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "received_at",
+              "displayName": "received_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "channel",
+              "displayName": "channel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contact",
+              "displayName": "contact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reason",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "d1a382f2-8c66-52d5-8b4b-9b3559851322",
+      "name": "save_contact_request",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1300,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Emails the business owner that a customer wants a person to get back to them. Use right after save_contact_request.",
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=Chat: {{ $fromAI('name', 'Customer name, or empty if unknown', 'string') || 'A customer' }} wants a call back",
+        "emailType": "text",
+        "message": "=Channel: {{ $('Read the message').first().json.channel }}\nContact: {{ $fromAI('contact', 'Phone number or email the customer gave', 'string') }}\nReason: {{ $fromAI('reason', 'One of: callback, booking, quote, complaint, other', 'string') }}\n\n{{ $fromAI('summary', 'One or two sentences on what the customer needs', 'string') }}\n\nThis request is also saved in the Conversations tab of your FAQ sheet.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "e3ec72b6-829a-54e2-a8b0-2a005a6cf258",
+      "name": "notify_owner",
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2be1a30a-0dd8-46e1-a5e6-27cb8d96d4e0",
+              "leftValue": "={{ $('Read the message').first().json.channel }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "whatsapp"
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "fac5f7a4-f1e9-53d2-9044-aa331e2e55a6",
+      "name": "WhatsApp or website?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1480,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "messageType": "text",
+        "phoneNumberId": "={{ $('Settings').first().json.config.whatsapp_phone_number_id }}",
+        "recipientPhoneNumber": "={{ $('Read the message').first().json.reply_to }}",
+        "textBody": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "id": "3d3f7ab9-362a-5cba-bf4d-8350860d1830",
+      "name": "Reply on WhatsApp",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        1720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9b645755-4140-4af3-bfa2-cd61bee08964",
+              "name": "output",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2b7d1e79-100e-5491-b788-fe0728703606",
+      "name": "Reply on website",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1720,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## AI Support Chatbot: start here\nAnswers customer questions on your **website** (and optionally **WhatsApp**) using only the facts in your Google Sheet, remembers the conversation, and hands over to a human by saving the request and emailing you.\n\n**Setup (about 15 minutes)**\n1. Copy the Google Sheet template: a `Knowledge` tab (topic, answer) and a `Conversations` tab (received_at, channel, session_id, name, contact, reason, summary, status).\n2. Fill the `Knowledge` tab with your real hours, prices, services and policies. The bot only says what's in there.\n3. Open **Settings**: business name, booking link, sheet URL, owner email.\n4. Connect credentials: OpenAI, Google Sheets, Gmail (and WhatsApp if used).\n5. Activate, open the **Website chat** node to copy the chat URL, and paste the embed snippet (see SETUP.md) into your website.\n6. WhatsApp (optional): connect a WhatsApp Business Cloud API number, add your phone number ID in Settings. Delete the WhatsApp nodes if you don't need them.",
+        "height": 560,
+        "width": 480,
+        "color": 4
+      },
+      "id": "fb86a75c-f84d-50ef-b47c-90eaa71c92dc",
+      "name": "Note: start here",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### How it answers\nBoth channels become one message → the FAQ sheet is loaded fresh every time (edit the sheet, the bot changes instantly) → the assistant answers with the last 12 messages of memory → the reply goes back to the channel it came from.",
+        "height": 180,
+        "width": 520,
+        "color": 7
+      },
+      "id": "5833e948-7c0f-52a3-9fb8-46a20a14418c",
+      "name": "Note: how it answers",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        440,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Handover to a human\nWhen someone wants a person, the assistant collects a phone or email, then logs it in the `Conversations` tab and emails you.",
+        "height": 160,
+        "width": 360,
+        "color": 7
+      },
+      "id": "f21f84e8-3afb-5d33-b9a9-b9be12643b08",
+      "name": "Note: handover",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        520
+      ]
+    }
+  ],
+  "connections": {
+    "Website chat": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp message": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read the message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the message": {
+      "main": [
+        [
+          {
+            "node": "Load FAQ sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load FAQ sheet": {
+      "main": [
+        [
+          {
+            "node": "Prepare FAQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare FAQ": {
+      "main": [
+        [
+          {
+            "node": "AI assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI assistant",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI assistant",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save_contact_request": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "notify_owner": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI assistant": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp or website?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp or website?": {
+      "main": [
+        [
+          {
+            "node": "Reply on WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply on website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -1,0 +1,72 @@
+{
+  "name": "Error alert: email me when a workflow fails",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ae286b7e-ab0f-5e0a-b086-35e3e6bc4c86",
+      "name": "When a workflow fails",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "you@example.com",
+        "subject": "=⚠️ n8n workflow failed: {{ $json.workflow.name }}",
+        "emailType": "text",
+        "message": "=Workflow: {{ $json.workflow.name }}\nFailed step: {{ $json.execution.lastNodeExecuted }}\nError: {{ $json.execution.error.message }}\nWhen: {{ $now.toFormat('ccc d LLL yyyy, HH:mm') }}\n\nOpen the failed run: {{ $json.execution.url }}\n\nIf the error mentions credentials or 401/403, reconnect that account in n8n. If it mentions a sheet or column, check the Google Sheet's tab name and headers.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "81e5a981-8ebc-5405-9cf3-c1615fa3e01a",
+      "name": "Email the alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Error alert\nEmails you whenever one of your client workflows fails, with the failed step and a link to the run.\n\n1. Put your email in **Email the alert** and connect Gmail.\n2. Save this workflow (it does not need to be activated).\n3. In each product workflow: **Settings (⋯ menu) → Workflow settings → Error workflow** → pick this one.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "1db133a4-8dea-51f9-8a3a-c40fea480fcf",
+      "name": "Note: how to use",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -300
+      ]
+    }
+  ],
+  "connections": {
+    "When a workflow fails": {
+      "main": [
+        [
+          {
+            "node": "Email the alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

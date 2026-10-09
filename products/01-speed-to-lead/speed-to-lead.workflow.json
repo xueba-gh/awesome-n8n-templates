@@ -1,0 +1,1907 @@
+{
+  "name": "Speed-to-Lead: AI lead reply, scoring & follow-up",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-lead",
+        "responseMode": "onReceived",
+        "options": {
+          "responseData": "{\"ok\":true}",
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "8cbc63bd-40e4-5896-8190-b4e5adaf3fdc",
+      "name": "New lead (webhook)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "9a1d2c4e-1b7f-4f3a-9c21-5b8e7d6a1001"
+    },
+    {
+      "parameters": {
+        "formTitle": "Request a call back",
+        "formDescription": "Leave your details and we'll get back to you within minutes.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email"
+            },
+            {
+              "fieldLabel": "Phone"
+            },
+            {
+              "fieldLabel": "How can we help?",
+              "fieldType": "textarea",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Send",
+          "respondWithOptions": {
+            "values": {
+              "formSubmittedText": "Thanks! We'll be in touch in a moment."
+            }
+          }
+        }
+      },
+      "id": "1aefc822-52a6-5921-81ea-c7fa9735f4d7",
+      "name": "New lead (built-in form)",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        200
+      ],
+      "webhookId": "9a1d2c4e-1b7f-4f3a-9c21-5b8e7d6a1002"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "10dfafda-76d6-5dc3-9f2b-3f55dc316866",
+      "name": "Every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-booked",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "c09c025b-0383-5278-a66b-c425323693c7",
+      "name": "Booking made (Cal.com / Calendly)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        600
+      ],
+      "webhookId": "9a1d2c4e-1b7f-4f3a-9c21-5b8e7d6a1003"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-replied",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3c445231-2e02-5676-a45b-2fb7c16fb035",
+      "name": "Lead texted back (Twilio)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        800
+      ],
+      "webhookId": "9a1d2c4e-1b7f-4f3a-9c21-5b8e7d6a1004"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<Response></Response>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/xml"
+              }
+            ]
+          }
+        }
+      },
+      "id": "c2dd323c-e9b8-5241-b78d-e372024a1831",
+      "name": "Answer Twilio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        220,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0a43a8ee-2c37-4d22-a5d6-5734b03a4d41",
+              "name": "event",
+              "value": "new_lead",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      },
+      "id": "f84edddf-bd10-56cc-abf2-c2425a05a1b1",
+      "name": "Event: new lead",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "35f6d5d9-3ad1-450b-97d9-df23c97dc4d7",
+              "name": "event",
+              "value": "new_lead",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      },
+      "id": "badf10c3-7ba9-5ba9-b062-9616f96d617d",
+      "name": "Event: new lead (form)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b8187118-dccb-46e7-89ec-73d0d627e697",
+              "name": "event",
+              "value": "follow_up",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      },
+      "id": "62835f83-cb52-5ff3-9c31-1b219f7786b7",
+      "name": "Event: follow-up check",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3f9e56bc-491c-42f5-8e21-af05afedfca6",
+              "name": "event",
+              "value": "booked",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      },
+      "id": "0ea9e3c5-2f8d-5f0b-85a7-9b265f674e84",
+      "name": "Event: booked",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "47dff3ee-8605-4986-ab20-4fb1873a2a6a",
+              "name": "event",
+              "value": "replied",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      },
+      "id": "13ac977a-c89a-5da1-9471-2e00a3932bf0",
+      "name": "Event: lead replied",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"business_name\": \"Acme Plumbing\",\n    \"business_type\": \"local plumbing company\",\n    \"services\": \"Emergency repairs, leak detection, water heaters, bathroom and kitchen plumbing\",\n    \"service_area\": \"Springfield and 25 miles around\",\n    \"sender_name\": \"Sam at Acme Plumbing\",\n    \"tone\": \"friendly, short and professional\",\n    \"booking_link\": \"https://cal.com/your-business/15min\",\n\n    \"owner_email\": \"owner@example.com\",\n    \"owner_phone\": \"+15550000000\",\n    \"text_owner_on_hot_leads\": true,\n\n    \"twilio_from_number\": \"+15550000001\",\n    \"send_via_whatsapp\": false,\n    \"default_country_code\": \"+1\",\n\n    \"leads_sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"leads_sheet_tab\": \"Leads\",\n\n    \"hot_lead_score\": 8,\n    \"first_follow_up_after_hours\": 24,\n    \"second_follow_up_after_hours\": 72,\n    \"max_follow_ups\": 2\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "76eee70e-3572-5671-a4df-f000e5e11dcf",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        680,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7878126f-43aa-4a19-81d4-e012de8b7a21",
+                    "leftValue": "={{ $json.event }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "new_lead"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "New lead"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f73969bb-5a1d-410d-bade-63295e7a178f",
+                    "leftValue": "={{ $json.event }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "follow_up"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Follow-up check"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b9d4ce09-4385-45a9-bc1d-90abba846ab4",
+                    "leftValue": "={{ $json.event }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "booked"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Booked"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "9120290f-1e81-4521-afee-9fef692fcf4d",
+                    "leftValue": "={{ $json.event }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "replied"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Lead replied"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "56a30079-baf8-57bf-9c62-a2c942a3a7eb",
+      "name": "Route by event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Turns any form/webhook payload into one clean lead.\n// Works with n8n Form, Typeform/Tally/Jotform/Webflow/WordPress webhooks, Zapier/Make, Facebook Lead Ads via Zapier, etc.\nconst cfg = $('Settings').first().json.config;\nconst key = (k) => String(k).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');\n\nfunction flatten(obj, into = {}) {\n  for (const [k, v] of Object.entries(obj || {})) {\n    if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, into);\n    else if (!(key(k) in into)) into[key(k)] = v;\n  }\n  return into;\n}\nfunction pick(data, keys) {\n  for (const k of keys) {\n    const v = data[k];\n    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();\n  }\n  return '';\n}\nfunction normalizePhone(raw, cc) {\n  if (!raw) return '';\n  let p = String(raw).replace(/^whatsapp:/i, '').trim();\n  const plus = p.startsWith('+') || p.startsWith('00');\n  let digits = p.replace(/\\D/g, '');\n  if (p.startsWith('00')) digits = digits.slice(2);\n  if (digits.length < 6) return '';\n  if (plus) return '+' + digits;\n  const ccDigits = String(cc || '').replace(/\\D/g, '');\n  if (ccDigits && digits.startsWith(ccDigits) && digits.length > 10) return '+' + digits;\n  return '+' + ccDigits + digits.replace(/^0/, '');\n}\n\nconst out = [];\nfor (const item of $input.all()) {\n  const j = item.json;\n  const { event, config, headers, params, query, ...rest } = j;\n  const data = flatten(j.body && typeof j.body === 'object' ? j.body : rest);\n\n  let name = pick(data, ['name', 'full_name', 'fullname', 'your_name', 'contact_name']);\n  if (!name) name = [pick(data, ['first_name', 'firstname', 'first']), pick(data, ['last_name', 'lastname', 'last'])].filter(Boolean).join(' ');\n  let email = pick(data, ['email', 'email_address', 'e_mail', 'your_email', 'mail']).toLowerCase();\n  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) email = '';\n  const phone = normalizePhone(pick(data, ['phone', 'phone_number', 'mobile', 'mobile_phone', 'mobile_number', 'tel', 'telephone', 'cell', 'whatsapp']), cfg.default_country_code);\n  const message = pick(data, ['message', 'how_can_we_help', 'comments', 'comment', 'notes', 'details', 'enquiry', 'inquiry', 'description', 'question']);\n  const source = pick(data, ['source', 'lead_source', 'utm_source', 'form_name', 'formname']) || (j.formMode ? 'Website form (n8n)' : 'Webhook');\n\n  out.push({ json: {\n    lead_id: 'L' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(),\n    received_at: new Date().toISOString(),\n    name, email, phone, source, message,\n    has_contact: Boolean(email || phone),\n  }});\n}\nreturn out;"
+      },
+      "id": "c8b05975-042d-54b6-b339-16fa21018802",
+      "name": "Clean up lead details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "3d276410-6d69-4096-8f74-d3bb3e2ce7c2",
+              "leftValue": "={{ $json.has_contact }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "c9144925-2553-5ba3-870a-4420c194ebb7",
+      "name": "Has email or phone?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1380,
+        -200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "6d807eec-b03a-58e6-8145-de34b667d692",
+      "name": "Ignore: no contact details",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1620,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_tab }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "={{ $json.email ? 'email' : 'phone' }}",
+              "lookupValue": "={{ $json.email || $json.phone }}"
+            }
+          ]
+        },
+        "options": {
+          "returnAllMatches": "returnFirstMatch"
+        }
+      },
+      "id": "edbf975a-42d6-55b9-9e54-a2e861c0bef0",
+      "name": "Already in the sheet?",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1620,
+        -220
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8f081416-0238-45f1-a23b-76b861863788",
+              "leftValue": "={{ $json.lead_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "9e2153cd-e4b4-5c6f-8945-a38a8df415b5",
+      "name": "New lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1840,
+        -220
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=Returning lead: {{ $('Clean up lead details').item.json.name || $('Clean up lead details').item.json.email || $('Clean up lead details').item.json.phone }}",
+        "emailType": "text",
+        "message": "={{ $('Clean up lead details').item.json.name || 'Someone' }} who is already in your leads sheet (status: {{ $json.status }}) just got in touch again.\n\nEmail: {{ $('Clean up lead details').item.json.email }}\nPhone: {{ $('Clean up lead details').item.json.phone }}\nSource: {{ $('Clean up lead details').item.json.source }}\n\nMessage:\n{{ $('Clean up lead details').item.json.message }}\n\nNo automatic reply was sent, so they hear from a person this time.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "b645986e-723e-58c1-9854-876e08168a78",
+      "name": "Tell owner: returning lead",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2100,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are the first-response assistant for {{ $('Settings').first().json.config.business_name }}, a {{ $('Settings').first().json.config.business_type }}.\nServices: {{ $('Settings').first().json.config.services }}\nService area: {{ $('Settings').first().json.config.service_area }}\nBooking link: {{ $('Settings').first().json.config.booking_link }}\nSign messages as: {{ $('Settings').first().json.config.sender_name }}\nTone: {{ $('Settings').first().json.config.tone }}\n\nA new enquiry has just arrived:\n- Name: {{ $('Clean up lead details').item.json.name || 'not given' }}\n- Email: {{ $('Clean up lead details').item.json.email || 'not given' }}\n- Phone: {{ $('Clean up lead details').item.json.phone || 'not given' }}\n- Source: {{ $('Clean up lead details').item.json.source }}\n- Message: {{ $('Clean up lead details').item.json.message || 'no message' }}\n\nDo three things:\n1. score: a whole number from 1 to 10 for how likely this person is to buy soon. 9-10 = urgent need, clear job, ready to book. 5-8 = genuine interest, no urgency. 1-4 = vague, out of area, job seeker, spam or sales pitch.\n2. summary: one sentence for the business owner saying what they want and how urgent it is.\n3. Write the first replies:\n   - sms_message: a text message under 300 characters. Use their first name if known. Thank them, show you understood their need in a few words, and invite them to book with the booking link. Sign with the sender name.\n   - email_subject and email_body: a short plain-text email with the same message, a bit more detail, the booking link on its own line, and the sender name as signature.\n\nRules: reply in the same language the lead wrote in. Never invent prices, availability, discounts or guarantees; if they asked for something you cannot know, say the team will confirm it shortly. If the message looks like spam or a sales pitch, give score 1 and keep the replies neutral.",
+        "hasOutputParser": true
+      },
+      "id": "5d6672e3-11ab-570f-aec4-967b11f0937f",
+      "name": "AI: score lead & write replies",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2080,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "2fef8570-8fa7-5fb7-becd-b05b59fb0e99",
+      "name": "OpenAI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2020,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"score\": 8,\n  \"summary\": \"Needs a burst pipe fixed today, ready to book.\",\n  \"sms_message\": \"Hi Jane, thanks for reaching out...\",\n  \"email_subject\": \"Your enquiry with Acme Plumbing\",\n  \"email_body\": \"Hi Jane,\\n\\nThanks for getting in touch...\"\n}"
+      },
+      "id": "a8cd1c82-7b34-59d5-aa38-9db290f7d971",
+      "name": "Lead reply format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2200,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const lead = $('Clean up lead details').item.json;\nconst cfg = $('Settings').first().json.config;\nconst ai = $json.output || {};\nconst score = Math.max(1, Math.min(10, Math.round(Number(ai.score)) || 5));\nconst hot = Number(cfg.hot_lead_score) || 8;\nreturn { json: {\n  lead_id: lead.lead_id,\n  received_at: lead.received_at,\n  name: lead.name,\n  email: lead.email,\n  phone: lead.phone,\n  source: lead.source,\n  message: lead.message,\n  score,\n  temperature: score >= hot ? 'hot' : score >= 5 ? 'warm' : 'cold',\n  summary: ai.summary || '',\n  status: 'contacted',\n  followups_sent: 0,\n  last_contact_at: new Date().toISOString(),\n  notes: '',\n  sms_message: ai.sms_message || '',\n  email_subject: ai.email_subject || 'Thanks for getting in touch',\n  email_body: ai.email_body || '',\n}};"
+      },
+      "id": "21149790-3ded-5e95-bff9-fb7aa83cb51a",
+      "name": "Build lead record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b880afe6-5c1a-4f83-b90f-f8b8a6dd694c",
+              "leftValue": "={{ $json.phone }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "d45c61c7-2123-5b5e-8a8a-af731a38370c",
+      "name": "Reply: has phone?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2660,
+        -560
+      ]
+    },
+    {
+      "parameters": {
+        "from": "={{ $('Settings').first().json.config.twilio_from_number }}",
+        "to": "={{ $json.phone }}",
+        "toWhatsapp": "={{ $('Settings').first().json.config.send_via_whatsapp }}",
+        "message": "={{ $json.sms_message }}",
+        "options": {}
+      },
+      "id": "e8e01fb9-defc-5ea6-9689-e3982ea9845d",
+      "name": "Reply: text the lead",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        2900,
+        -560
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "bcad7531-bac1-40c2-84ca-f1808fc280b6",
+              "leftValue": "={{ $json.email }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "f6522afb-d4bb-533a-99e1-54c58d6e86d9",
+      "name": "Reply: has email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2660,
+        -380
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.email_subject }}",
+        "emailType": "text",
+        "message": "={{ $json.email_body }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "={{ $('Settings').first().json.config.sender_name }}"
+        }
+      },
+      "id": "5c9d10b3-7145-5878-a78e-d39710f51e38",
+      "name": "Reply: email the lead",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2900,
+        -380
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "da5f3083-8880-5aef-ae51-bacbcc74b77a",
+      "name": "Save lead to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2660,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "52e3905f-5ef7-419e-af9b-334a1948fab9",
+              "leftValue": "={{ $json.score }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              },
+              "rightValue": "={{ Number($('Settings').first().json.config.hot_lead_score) || 8 }}"
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "abf6b6f4-c397-5b1d-9374-d2c5447a6310",
+      "name": "Hot lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2660,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=🔥 Hot lead ({{ $json.score }}/10): {{ $json.name || $json.email || $json.phone }}",
+        "emailType": "text",
+        "message": "={{ $json.summary }}\n\nName: {{ $json.name }}\nPhone: {{ $json.phone }}\nEmail: {{ $json.email }}\nSource: {{ $json.source }}\n\nTheir message:\n{{ $json.message }}\n\nThey have already received an automatic reply with your booking link. Call them now while they're hot.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "162724eb-40f7-5244-b063-75fb19b33fc0",
+      "name": "Email owner: hot lead",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2900,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b2b42ab7-dfee-42a2-a380-b4fa307f6507",
+              "leftValue": "={{ $('Settings').first().json.config.text_owner_on_hot_leads }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            },
+            {
+              "id": "8d5b593e-1852-4360-b3c3-5c80254b74a9",
+              "leftValue": "={{ $('Settings').first().json.config.owner_phone }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "3b5a491e-e017-5ba3-9cdb-eaccdb5f62b8",
+      "name": "Text the owner too?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3140,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "from": "={{ $('Settings').first().json.config.twilio_from_number }}",
+        "to": "={{ $('Settings').first().json.config.owner_phone }}",
+        "message": "=HOT LEAD {{ $('Build lead record').item.json.score }}/10: {{ $('Build lead record').item.json.name }} {{ $('Build lead record').item.json.phone }} - {{ $('Build lead record').item.json.summary }}",
+        "options": {}
+      },
+      "id": "f6890cc5-93da-5c23-83da-2f463cbccebd",
+      "name": "Text owner: hot lead",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        3380,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_tab }}"
+        },
+        "filtersUI": {},
+        "options": {}
+      },
+      "id": "c7c4425d-3b22-535c-8869-0343086e6dc0",
+      "name": "Read all leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1160,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Picks leads that were contacted, haven't replied/booked, and are due their next follow-up.\n// Follow-up 1 goes out first_follow_up_after_hours after the lead arrived, follow-up 2 at second_follow_up_after_hours.\nconst cfg = $('Settings').first().json.config;\nconst maxFollowUps = Number(cfg.max_follow_ups ?? 2);\nconst delays = [Number(cfg.first_follow_up_after_hours ?? 24), Number(cfg.second_follow_up_after_hours ?? 72)];\nconst now = Date.now();\nconst due = [];\nfor (const { json: row } of $input.all()) {\n  if (String(row.status || '').trim().toLowerCase() !== 'contacted') continue;\n  const sent = Number(row.followups_sent) || 0;\n  if (sent >= maxFollowUps) continue;\n  if (!row.email && !row.phone) continue;\n  const received = Date.parse(row.received_at);\n  if (Number.isNaN(received)) continue;\n  const waitHours = delays[Math.min(sent, delays.length - 1)] + Math.max(0, sent - delays.length + 1) * 48;\n  if ((now - received) / 36e5 >= waitHours) due.push({ json: { ...row, followup_number: sent + 1 } });\n}\nreturn due.slice(0, 25); // keep each run small"
+      },
+      "id": "b51a17da-1325-550b-ab79-2c9d501480a5",
+      "name": "Find leads due a follow-up",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1380,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You write follow-up messages for {{ $('Settings').first().json.config.business_name }}, a {{ $('Settings').first().json.config.business_type }}.\nBooking link: {{ $('Settings').first().json.config.booking_link }}\nSign as: {{ $('Settings').first().json.config.sender_name }}\nTone: {{ $('Settings').first().json.config.tone }}\n\nThis lead got in touch {{ Math.round((Date.now() - Date.parse($('Find leads due a follow-up').item.json.received_at)) / 36e5) }} hours ago, received our first reply, and has not booked or answered yet.\nThis is follow-up number {{ $('Find leads due a follow-up').item.json.followup_number }} of {{ $('Settings').first().json.config.max_follow_ups }}.\n- Name: {{ $('Find leads due a follow-up').item.json.name || 'not given' }}\n- What they asked: {{ $('Find leads due a follow-up').item.json.message || 'no message' }}\n- Our notes: {{ $('Find leads due a follow-up').item.json.summary }}\n\nWrite:\n- sms_message: under 250 characters, warm and low-pressure, refers to what they asked, includes the booking link, signed with the sender name.\n- email_subject and email_body: a short plain-text follow-up email with the same message and the booking link on its own line.\nIf this is the last follow-up, say it's the last message and that they can reply any time. Reply in the language they wrote in. Never invent prices or offers.",
+        "hasOutputParser": true
+      },
+      "id": "3017e225-c082-58a4-bce9-828e037f5237",
+      "name": "AI: write follow-up",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1620,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "6e23489b-17ea-5ffa-b83e-cdfb90b8adc0",
+      "name": "OpenAI model (follow-ups)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1560,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"sms_message\": \"Hi Jane, just checking in...\",\n  \"email_subject\": \"Still need a hand?\",\n  \"email_body\": \"Hi Jane,\\n\\nJust checking in...\"\n}"
+      },
+      "id": "cc33e905-94b1-5ea5-9116-762a4df83ca1",
+      "name": "Follow-up format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1740,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const row = $('Find leads due a follow-up').item.json;\nconst cfg = $('Settings').first().json.config;\nconst ai = $json.output || {};\nconst n = row.followup_number;\nreturn { json: {\n  lead_id: row.lead_id,\n  name: row.name,\n  email: row.email,\n  phone: row.phone,\n  followups_sent: n,\n  last_contact_at: new Date().toISOString(),\n  status: n >= Number(cfg.max_follow_ups ?? 2) ? 'no_response' : 'contacted',\n  sms_message: ai.sms_message || '',\n  email_subject: ai.email_subject || 'Following up',\n  email_body: ai.email_body || '',\n}};"
+      },
+      "id": "0395f40e-d652-5052-a91a-6ca2d03519f8",
+      "name": "Build follow-up",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1940,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "122d1382-a52d-4206-a68d-882f8732df6d",
+              "leftValue": "={{ $json.phone }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "372df155-58d8-5af7-ae1b-442173623f26",
+      "name": "Follow-up: has phone?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2660,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "from": "={{ $('Settings').first().json.config.twilio_from_number }}",
+        "to": "={{ $json.phone }}",
+        "toWhatsapp": "={{ $('Settings').first().json.config.send_via_whatsapp }}",
+        "message": "={{ $json.sms_message }}",
+        "options": {}
+      },
+      "id": "cad20e31-51c0-5830-b37b-281190b520e8",
+      "name": "Follow-up: text the lead",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        2900,
+        400
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "311eebd8-89ca-4d4c-9c1a-b89a0e015a42",
+              "leftValue": "={{ $json.email }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "625bce99-fbf0-5d11-a789-f4e56686cc64",
+      "name": "Follow-up: has email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2660,
+        580
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.email_subject }}",
+        "emailType": "text",
+        "message": "={{ $json.email_body }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "={{ $('Settings').first().json.config.sender_name }}"
+        }
+      },
+      "id": "cc5515a7-9f91-58b6-b2b5-6e531ae880ad",
+      "name": "Follow-up: email the lead",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2900,
+        580
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "lead_id"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "8996ce5e-a1c0-5a87-bb14-ceaef0c04347",
+      "name": "Update lead row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2660,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Accepts Cal.com (BOOKING_CREATED), Calendly (invitee.created) or a simple {\"email\": \"...\"} webhook.\nconst b = $json.body || {};\nif (b.triggerEvent && b.triggerEvent !== 'BOOKING_CREATED') return [];\nif (b.event && b.event !== 'invitee.created') return [];\nconst p = b.payload || b;\nconst email = String(p.attendees?.[0]?.email || p.email || p.invitee?.email || '').trim().toLowerCase();\nif (!email) return [];\nreturn [{ json: { email, status: 'booked' } }];"
+      },
+      "id": "614aa736-e233-5dcb-8147-0a32fffee7b1",
+      "name": "Get booking email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "email"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "b019f7ce-6742-5ada-9292-99d8813ccccf",
+      "name": "Mark lead as booked",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1400,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Twilio posts From / Body when a lead texts your number back.\nconst b = $json.body || {};\nconst from = String(b.From || '').replace(/^whatsapp:/i, '').trim();\nconst text = String(b.Body || '').trim();\nif (!from) return [];\nconst optOut = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i.test(text);\nreturn [{ json: { phone: from, reply_text: text, status: optOut ? 'opted_out' : 'replied' } }];"
+      },
+      "id": "1afa79b0-c768-5ba7-be62-f43d03442543",
+      "name": "Read the text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_tab }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "phone",
+              "lookupValue": "={{ $json.phone }}"
+            }
+          ]
+        },
+        "options": {
+          "returnAllMatches": "returnFirstMatch"
+        }
+      },
+      "id": "c09b4e5d-8028-53c3-b3db-a627d235de65",
+      "name": "Find lead by phone",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1380,
+        1200
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d2ed2b2d-71ab-4963-85b6-d45ae8feb316",
+              "leftValue": "={{ $json.lead_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "646ea3b3-7ba4-548e-bd13-77024c9caf16",
+      "name": "Known lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4534c308-ada5-44e8-87e8-ac670fc1bc29",
+              "name": "lead_id",
+              "value": "={{ $json.lead_id }}",
+              "type": "string"
+            },
+            {
+              "id": "333fc6d8-4013-402b-8b7b-229827f71f0d",
+              "name": "status",
+              "value": "={{ $('Read the text').item.json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "6d7578cc-a787-4e16-a3f3-33ee06378d35",
+              "name": "last_contact_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0901922c-6801-5a90-9283-57a117b6b63a",
+      "name": "Set status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1840,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.leads_sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "lead_id"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "9ff29070-c67d-5591-ac8f-c20d915a4531",
+      "name": "Mark lead as replied",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2060,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=💬 Text reply from {{ $('Find lead by phone').item.json.name || $('Read the text').item.json.phone }}",
+        "emailType": "text",
+        "message": "={{ $('Find lead by phone').item.json.name || 'Someone' }} ({{ $('Read the text').item.json.phone }}) replied:\n\n\"{{ $('Read the text').item.json.reply_text }}\"\n\nTheir original enquiry: {{ $('Find lead by phone').item.json.message || 'not found in your sheet' }}\n\nAutomatic follow-ups for this lead have stopped. Reply to them from your phone or Twilio.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "50689078-3d1a-5d4d-94b7-401c86ca2bd4",
+      "name": "Forward reply to owner",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2300,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Speed-to-Lead: start here\nReplies to every new lead in under a minute by text/WhatsApp and email, scores it with AI, logs it in Google Sheets, alerts you about hot leads and follows up twice if they go quiet.\n\n**Setup (about 20 minutes)**\n1. Copy the Google Sheet template (columns: lead_id, received_at, name, email, phone, source, message, score, temperature, summary, status, followups_sent, last_contact_at, notes). Name the tab `Leads`.\n2. Open **Settings** and fill in your business details, sheet URL, booking link and phone numbers.\n3. Connect credentials: OpenAI, Google Sheets, Gmail, Twilio.\n4. Point your website form at the **New lead (webhook)** URL, or share the built-in form's URL.\n5. Optional: add the **Booking made** URL as a Cal.com/Calendly webhook, and the **Lead texted back** URL as your Twilio number's \"A message comes in\" webhook.\n6. Activate the workflow.",
+        "height": 520,
+        "width": 460,
+        "color": 4
+      },
+      "id": "3035ce95-78c7-5480-a9ff-538b51c12525",
+      "name": "Note: start here",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -560
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 1. New lead\nClean up the details from any form → skip duplicates → AI scores the lead and writes a text + email → send both → save to the sheet → alert you if it's hot.\nText/email to the lead never block the rest: a typo in a phone number won't lose the lead.",
+        "height": 200,
+        "width": 520,
+        "color": 7
+      },
+      "id": "31f7ea4e-f118-5d95-a74c-762c976f1993",
+      "name": "Note: new lead",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        -620
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 2. Follow-ups (every hour)\nLeads still marked `contacted` get follow-up 1 after 24h and follow-up 2 after 72h (change in Settings). After the last one the status becomes `no_response`.\nTo stop follow-ups for a lead, change its status in the sheet (e.g. `booked`, `replied`, `lost`).",
+        "height": 200,
+        "width": 560,
+        "color": 7
+      },
+      "id": "c27f4a6d-46f6-5530-98bc-de3010cca817",
+      "name": "Note: follow-ups",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 3. Booked / replied\nBookings from Cal.com or Calendly mark the lead `booked`. Texts back to your Twilio number mark it `replied` (or `opted_out` for STOP) and are forwarded to your email. Either way, follow-ups stop.",
+        "height": 150,
+        "width": 560,
+        "color": 7
+      },
+      "id": "f366b89e-71f4-56d7-a04d-4fba42fb4c7a",
+      "name": "Note: booked & replied",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        830
+      ]
+    }
+  ],
+  "connections": {
+    "Lead texted back (Twilio)": {
+      "main": [
+        [
+          {
+            "node": "Answer Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New lead (webhook)": {
+      "main": [
+        [
+          {
+            "node": "Event: new lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event: new lead": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New lead (built-in form)": {
+      "main": [
+        [
+          {
+            "node": "Event: new lead (form)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event: new lead (form)": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every hour": {
+      "main": [
+        [
+          {
+            "node": "Event: follow-up check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event: follow-up check": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Booking made (Cal.com / Calendly)": {
+      "main": [
+        [
+          {
+            "node": "Event: booked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event: booked": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Twilio": {
+      "main": [
+        [
+          {
+            "node": "Event: lead replied",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event: lead replied": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Route by event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by event": {
+      "main": [
+        [
+          {
+            "node": "Clean up lead details",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read all leads",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get booking email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read the text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up lead details": {
+      "main": [
+        [
+          {
+            "node": "Has email or phone?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has email or phone?": {
+      "main": [
+        [
+          {
+            "node": "Already in the sheet?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignore: no contact details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already in the sheet?": {
+      "main": [
+        [
+          {
+            "node": "New lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New lead?": {
+      "main": [
+        [
+          {
+            "node": "AI: score lead & write replies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tell owner: returning lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: score lead & write replies",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead reply format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: score lead & write replies",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: score lead & write replies": {
+      "main": [
+        [
+          {
+            "node": "Build lead record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build lead record": {
+      "main": [
+        [
+          {
+            "node": "Reply: has phone?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Reply: has email?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save lead to sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Hot lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply: has phone?": {
+      "main": [
+        [
+          {
+            "node": "Reply: text the lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply: has email?": {
+      "main": [
+        [
+          {
+            "node": "Reply: email the lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hot lead?": {
+      "main": [
+        [
+          {
+            "node": "Email owner: hot lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email owner: hot lead": {
+      "main": [
+        [
+          {
+            "node": "Text the owner too?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text the owner too?": {
+      "main": [
+        [
+          {
+            "node": "Text owner: hot lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read all leads": {
+      "main": [
+        [
+          {
+            "node": "Find leads due a follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find leads due a follow-up": {
+      "main": [
+        [
+          {
+            "node": "AI: write follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI model (follow-ups)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: write follow-up",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow-up format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: write follow-up",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: write follow-up": {
+      "main": [
+        [
+          {
+            "node": "Build follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build follow-up": {
+      "main": [
+        [
+          {
+            "node": "Follow-up: has phone?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Follow-up: has email?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update lead row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow-up: has phone?": {
+      "main": [
+        [
+          {
+            "node": "Follow-up: text the lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow-up: has email?": {
+      "main": [
+        [
+          {
+            "node": "Follow-up: email the lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get booking email": {
+      "main": [
+        [
+          {
+            "node": "Mark lead as booked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the text": {
+      "main": [
+        [
+          {
+            "node": "Find lead by phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find lead by phone": {
+      "main": [
+        [
+          {
+            "node": "Known lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Known lead?": {
+      "main": [
+        [
+          {
+            "node": "Set status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Forward reply to owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set status": {
+      "main": [
+        [
+          {
+            "node": "Mark lead as replied",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark lead as replied": {
+      "main": [
+        [
+          {
+            "node": "Forward reply to owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

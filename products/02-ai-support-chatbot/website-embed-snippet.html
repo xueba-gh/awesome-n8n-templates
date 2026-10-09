@@ -1,0 +1,40 @@
+<!--
+  AI Support Chatbot: website embed
+  Paste this just before </body> on every page where the chat bubble should appear
+  (WordPress: a "Custom HTML" block or a header/footer plugin; Webflow: Site settings > Custom code > Footer;
+   Wix/Squarespace: "Embed code" / "Code injection").
+  Replace YOUR_CHAT_URL with the Production URL shown in the "Website chat" node, e.g.
+  https://yourname.app.n8n.cloud/webhook/5c1f7a2e-3b4d-4e6f-8a9b-0c1d2e3f4001/chat
+-->
+<link href="https://cdn.jsdelivr.net/npm/@n8n/chat@1.38.1/dist/style.css" rel="stylesheet" />
+<style>
+  :root {
+    --chat--color--primary: #0f766e;          /* brand colour: buttons and header */
+    --chat--color--primary-shade-50: #0d5f59;
+    --chat--color--secondary: #0f766e;        /* customer's message bubbles */
+    --chat--toggle--background: #0f766e;      /* the round chat button */
+    --chat--toggle--hover--background: #0d5f59;
+  }
+</style>
+<script type="module">
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat@1.38.1/dist/chat.bundle.es.js';
+  createChat({
+    webhookUrl: 'YOUR_CHAT_URL',
+    mode: 'window',
+    loadPreviousSession: false,
+    showWelcomeScreen: false,
+    initialMessages: [
+      'Hi there! 👋',
+      'I can answer questions about opening hours, prices, services and bookings. How can I help?'
+    ],
+    i18n: {
+      en: {
+        title: 'Ask us anything',
+        subtitle: 'We usually answer instantly',
+        footer: '',
+        getStarted: 'New conversation',
+        inputPlaceholder: 'Type your question...',
+      },
+    },
+  });
+</script>

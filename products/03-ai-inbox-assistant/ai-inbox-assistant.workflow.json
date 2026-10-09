@@ -1,0 +1,765 @@
+{
+  "name": "AI Inbox Assistant: Gmail labels, reply drafts & alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "in:inbox -from:me -subject:\"[Inbox Assistant]\"",
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "b5819a68-16e3-5f10-87f3-f9d5ea6bbd1d",
+      "name": "New email",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"your_name\": \"Sam Taylor\",\n    \"your_role_and_business\": \"owner of Acme Plumbing, a local plumbing company\",\n    \"facts_for_replies\": \"Opening hours Mon-Fri 8am-6pm. Free quotes. Booking link: https://cal.com/your-business. Emergency line: (555) 010-0000.\",\n    \"tone\": \"friendly, direct and professional\",\n    \"signature\": \"Best,\\nSam\\nAcme Plumbing | (555) 010-0000\",\n\n    \"alert_email\": \"you@example.com\",\n    \"label_prefix\": \"AI/\",\n\n    \"log_sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"log_tab\": \"Inbox log\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "2b380987-831c-5b68-a2d0-0da34db04b29",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pulls out the parts of each email the AI needs, and skips mail it should never touch.\nconst out = [];\nfor (const { json: m } of $input.all()) {\n  const fromObj = m.from?.value?.[0] || {};\n  const fromRaw = typeof m.from === 'string' ? m.from : (m.from?.text || m.From || '');\n  const fromAddress = (fromObj.address || (fromRaw.match(/<([^>]+)>/) || [, fromRaw])[1] || '').trim().toLowerCase();\n  const fromName = fromObj.name || fromRaw.replace(/<[^>]+>/, '').replace(/\"/g, '').trim();\n  const subject = String(m.subject || m.Subject || '(no subject)').trim();\n  if (subject.startsWith('[Inbox Assistant]')) continue; // our own alerts\n  let body = String(m.text || m.snippet || '').replace(/\\r/g, '');\n  body = body.split(/\\n(?:On .{5,200}wrote:|-----Original Message-----|From: .+\\nSent: )/)[0]; // drop quoted history\n  out.push({ json: {\n    message_id: m.id,\n    thread_id: m.threadId,\n    from_address: fromAddress,\n    from_name: fromName,\n    subject,\n    body: body.trim().slice(0, 6000),\n    is_no_reply: /(no-?reply|do-?not-?reply|mailer-daemon|notifications?@|bounce)/i.test(fromAddress),\n  }});\n}\nreturn out;"
+      },
+      "id": "188381e6-5d49-549f-9329-89405f8d33b7",
+      "name": "Prepare email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "5b8d7ea4-3734-51bc-9e80-df0f9f65a447",
+      "name": "One email at a time",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are the email assistant of {{ $('Settings').first().json.config.your_name }}, {{ $('Settings').first().json.config.your_role_and_business }}.\nFacts you may use in replies: {{ $('Settings').first().json.config.facts_for_replies }}\n\nRead this email and triage it.\n\nFrom: {{ $json.from_name }} <{{ $json.from_address }}>\nSubject: {{ $json.subject }}\nAutomated sender: {{ $json.is_no_reply ? 'yes' : 'no' }}\n\n{{ $json.body }}\n\nReturn:\n- category: exactly one of sales_lead (a potential new customer or a request for a quote/price), customer_support (an existing customer needs help), billing (invoices, payments, refunds), scheduling (meetings, appointments), personal, newsletter (marketing, newsletters, promotions), notification (automated alerts, receipts, system messages), spam, other.\n- urgency: high (needs action today, an angry customer, money or a deadline at stake), medium, or low.\n- needs_reply: true only if a real person is waiting for an answer from us. Always false for newsletter, notification, spam and automated senders.\n- summary: one sentence saying what the sender wants.\n- reply_draft: if needs_reply is true, a reply in the sender's language. Tone: {{ $('Settings').first().json.config.tone }}. Answer what you can from the facts above; where you need information you don't have, write [CHECK: what to check] so the owner can fill it in. Do not promise prices, dates or refunds that aren't in the facts. End with this signature exactly:\n{{ $('Settings').first().json.config.signature }}\n  If needs_reply is false, return an empty string.",
+        "hasOutputParser": true
+      },
+      "id": "e445aef4-9f2c-5a72-8dd8-74ac359797f9",
+      "name": "AI: triage email",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        900,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "fa75ea65-92ca-535d-ae1b-d8c467e485cb",
+      "name": "OpenAI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        860,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"category\": \"sales_lead\",\n  \"urgency\": \"high\",\n  \"needs_reply\": true,\n  \"summary\": \"Wants a quote for a new water heater this week.\",\n  \"reply_draft\": \"Hi Bob,\\n\\nThanks for getting in touch...\"\n}"
+      },
+      "id": "057d0e92-57ff-5b86-bdf6-a0c3ad7789ce",
+      "name": "Triage format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1000,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $('One email at a time').first().json;\nconst ai = $json.output || {};\nconst allowed = ['sales_lead', 'customer_support', 'billing', 'scheduling', 'personal', 'newsletter', 'notification', 'spam', 'other'];\nconst category = allowed.includes(ai.category) ? ai.category : 'other';\nconst pretty = { sales_lead: 'Sales lead', customer_support: 'Customer support', billing: 'Billing', scheduling: 'Scheduling',\n  personal: 'Personal', newsletter: 'Newsletter', notification: 'Notification', spam: 'Spam', other: 'Other' }[category];\nconst needsReply = Boolean(ai.needs_reply) && !email.is_no_reply && String(ai.reply_draft || '').trim() !== '';\nconst subject = /^re:/i.test(email.subject) ? email.subject : 'Re: ' + email.subject;\nreturn [{ json: {\n  ...email,\n  category,\n  label_name: $('Settings').first().json.config.label_prefix + pretty,\n  urgency: ['high', 'medium', 'low'].includes(ai.urgency) ? ai.urgency : 'medium',\n  needs_reply: needsReply,\n  summary: ai.summary || '',\n  reply_subject: subject,\n  reply_draft: needsReply ? ai.reply_draft : '',\n  alert: category === 'sales_lead' || ai.urgency === 'high',\n}}];"
+      },
+      "id": "4b902511-3300-5a63-a07f-6f50bd02ef23",
+      "name": "Triage result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "label",
+        "operation": "getAll",
+        "returnAll": true
+      },
+      "id": "b0715ebf-4ffe-5e15-b5bb-2e79d617811c",
+      "name": "Get Gmail labels",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1400,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const wanted = $('Triage result').first().json.label_name;\nconst match = $input.all().map(i => i.json).find(l => String(l.name).toLowerCase() === wanted.toLowerCase());\nreturn [{ json: { label_name: wanted, label_id: match ? match.id : '' } }];"
+      },
+      "id": "f259f3d7-fb89-5664-91e3-8dab7497a2c7",
+      "name": "Find label",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e0048c8b-ffd7-413c-b565-1beef6c91b3e",
+              "leftValue": "={{ $json.label_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "501e7371-9fa8-5411-8bfe-6b03b38286a9",
+      "name": "Label exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1840,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "label",
+        "operation": "create",
+        "name": "={{ $json.label_name }}",
+        "options": {}
+      },
+      "id": "55d04e4c-a184-5ed6-a3ad-51818fb050e6",
+      "name": "Create label",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2060,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1270aaa-091c-48d1-ac96-88eaa9226acb",
+              "name": "label_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "72c6b65e-6fb8-57f8-bf1e-cbb4a98957da",
+      "name": "Use new label",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2280,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Triage result').first().json.message_id }}",
+        "labelIds": "={{ [$json.label_id] }}"
+      },
+      "id": "aeb516a8-b4fa-5d57-b4a1-a16ed8bad8cf",
+      "name": "Add label to email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9c4d211e-11cf-4550-807e-005439f3d339",
+              "leftValue": "={{ $('Triage result').first().json.needs_reply }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "61e384e6-a26d-5a90-bd12-f899621c2acf",
+      "name": "Needs a reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2720,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "operation": "create",
+        "subject": "={{ $('Triage result').first().json.reply_subject }}",
+        "emailType": "text",
+        "message": "={{ $('Triage result').first().json.reply_draft }}",
+        "options": {
+          "threadId": "={{ $('Triage result').first().json.thread_id }}",
+          "sendTo": "={{ $('Triage result').first().json.from_address }}"
+        }
+      },
+      "id": "d461b2dd-4eb0-51a9-a3ec-37f628f6af2e",
+      "name": "Save reply as draft",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2940,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f011152e-838b-4463-94c4-35f4e726eaef",
+              "leftValue": "={{ $('Triage result').first().json.alert }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "94c22d5d-b159-59d5-b23c-2dc09541e2f4",
+      "name": "Alert me?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3160,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.alert_email }}",
+        "subject": "=[Inbox Assistant] {{ $('Triage result').first().json.category === 'sales_lead' ? '💰 New lead' : '⚡ Urgent' }}: {{ $('Triage result').first().json.subject }}",
+        "emailType": "text",
+        "message": "=From: {{ $('Triage result').first().json.from_name }} <{{ $('Triage result').first().json.from_address }}>\nWhat they want: {{ $('Triage result').first().json.summary }}\nUrgency: {{ $('Triage result').first().json.urgency }}\n\n{{ $('Triage result').first().json.needs_reply ? 'A reply draft is waiting in your Gmail Drafts.' : 'No reply drafted.' }}\n\nOpen the email: https://mail.google.com/mail/u/0/#inbox/{{ $('Triage result').first().json.message_id }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "78fcca17-a90d-5f36-819f-824b7b0e6bad",
+      "name": "Send me an alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3380,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0aa257ea-793f-4389-85ec-ab16c206f942",
+              "name": "processed_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "78520ab2-81e1-440a-942d-df8b1653961a",
+              "name": "from",
+              "value": "={{ $('Triage result').first().json.from_name }} <{{ $('Triage result').first().json.from_address }}>",
+              "type": "string"
+            },
+            {
+              "id": "085a2e17-1403-4924-a4ed-f2fce900555c",
+              "name": "subject",
+              "value": "={{ $('Triage result').first().json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "f9e37680-17b0-4b0a-99e4-6b8969593ba2",
+              "name": "category",
+              "value": "={{ $('Triage result').first().json.category }}",
+              "type": "string"
+            },
+            {
+              "id": "2db98853-d792-4614-a074-a4b782eb71a4",
+              "name": "urgency",
+              "value": "={{ $('Triage result').first().json.urgency }}",
+              "type": "string"
+            },
+            {
+              "id": "8f3da992-ea25-457e-98fc-2c9720ffaf92",
+              "name": "needs_reply",
+              "value": "={{ $('Triage result').first().json.needs_reply ? 'yes' : 'no' }}",
+              "type": "string"
+            },
+            {
+              "id": "d6d76986-500d-4757-bdfe-300cab69e26a",
+              "name": "summary",
+              "value": "={{ $('Triage result').first().json.summary }}",
+              "type": "string"
+            },
+            {
+              "id": "9914e226-c083-41ae-abd2-febdd095f857",
+              "name": "draft_created",
+              "value": "={{ $('Triage result').first().json.needs_reply ? 'yes' : 'no' }}",
+              "type": "string"
+            },
+            {
+              "id": "f41c48c1-32e3-4474-9c1c-f71dbc2e3ad5",
+              "name": "message_id",
+              "value": "={{ $('Triage result').first().json.message_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "24ed3f94-6ae8-50ad-b171-f79cf049828d",
+      "name": "Log row",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3600,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.log_sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.log_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "ad7a7760-51e5-5a76-8a84-7f5ce4c9f2bf",
+      "name": "Log to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3820,
+        100
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "380196cb-ca5b-54b2-af29-06ba071f182b",
+      "name": "Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        900,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## AI Inbox Assistant: start here\nEvery new email in Gmail is read by AI, labelled (AI/Sales lead, AI/Customer support, AI/Billing...), summarised and, if someone is waiting for an answer, a reply is saved in **Drafts** for you to check. It never sends email on your behalf. Sales leads and urgent mail trigger an alert, and everything is logged to a Google Sheet.\n\n**Setup (about 10 minutes)**\n1. Copy the log sheet template (tab `Inbox log`).\n2. Open **Settings**: your name, business, facts the AI may use in replies, signature, alert address, sheet URL.\n3. Connect credentials: Gmail, OpenAI, Google Sheets.\n4. Activate. Labels are created automatically the first time they're needed.",
+        "height": 420,
+        "width": 460,
+        "color": 4
+      },
+      "id": "27ddc85b-d132-5fd6-a4e0-13743ebaee01",
+      "name": "Note: start here",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Each email, one at a time\nAI triage → label → draft reply (if needed) → alert (leads & urgent) → log. Alerts are tagged `[Inbox Assistant]` and are ignored by the trigger, so it never loops on its own mail.",
+        "height": 170,
+        "width": 520,
+        "color": 7
+      },
+      "id": "815a4fc6-c104-5714-b1b2-5363e412b0c8",
+      "name": "Note: per email",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        880,
+        -320
+      ]
+    }
+  ],
+  "connections": {
+    "New email": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Prepare email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare email": {
+      "main": [
+        [
+          {
+            "node": "One email at a time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One email at a time": {
+      "main": [
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI: triage email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: triage email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Triage format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: triage email",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: triage email": {
+      "main": [
+        [
+          {
+            "node": "Triage result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Triage result": {
+      "main": [
+        [
+          {
+            "node": "Get Gmail labels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Gmail labels": {
+      "main": [
+        [
+          {
+            "node": "Find label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find label": {
+      "main": [
+        [
+          {
+            "node": "Label exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Label exists?": {
+      "main": [
+        [
+          {
+            "node": "Add label to email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create label": {
+      "main": [
+        [
+          {
+            "node": "Use new label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use new label": {
+      "main": [
+        [
+          {
+            "node": "Add label to email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add label to email": {
+      "main": [
+        [
+          {
+            "node": "Needs a reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs a reply?": {
+      "main": [
+        [
+          {
+            "node": "Save reply as draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert me?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save reply as draft": {
+      "main": [
+        [
+          {
+            "node": "Alert me?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert me?": {
+      "main": [
+        [
+          {
+            "node": "Send me an alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send me an alert": {
+      "main": [
+        [
+          {
+            "node": "Log row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log row": {
+      "main": [
+        [
+          {
+            "node": "Log to sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to sheet": {
+      "main": [
+        [
+          {
+            "node": "One email at a time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
