@@ -1,0 +1,5 @@
+lead_id,received_at,name,email,phone,source,message,score,temperature,summary,status,followups_sent,last_contact_at,notes
+demo-001,2026-11-02T09:12:00Z,Jo Martin,jo.martin@example.com,555-0101,website form,Water heater is leaking. Can someone come Thursday?,10,hot,Urgent repair; wants a visit Thursday,contacted,0,2026-11-02T09:12:40Z,Demo data
+demo-002,2026-11-02T14:30:00Z,Priya Shah,priya.shah@example.com,555-0102,website form,Quote for replacing two bathroom taps please,6,warm,Routine job; asking for a quote,contacted,1,2026-11-03T14:31:00Z,Demo data
+demo-003,2026-11-03T08:05:00Z,Luis Ortega,luis.ortega@example.com,555-0103,website form,Do you cover the north side of town?,4,cold,Coverage question only,contacted,0,2026-11-03T08:05:50Z,Demo data
+demo-004,2026-11-03T19:45:00Z,Hannah Cole,hannah.cole@example.com,555-0104,website form,Blocked kitchen drain. Need help tonight if possible,9,hot,Emergency drain blockage,booked,0,2026-11-03T19:46:10Z,Demo data

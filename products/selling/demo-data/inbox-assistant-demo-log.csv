@@ -1,0 +1,5 @@
+processed_at,from,subject,category,urgency,needs_reply,summary,draft_created,message_id
+2026-11-03T09:01:00Z,Jo Martin <jo.martin@example.com>,Water heater replacement price?,sales_lead,high,TRUE,Asks cost to replace a water heater this week; wants a visit Thursday,TRUE,demo-msg-001
+2026-11-03T09:03:00Z,Weekly Tips <news@example.com>,Your weekly home maintenance tips,newsletter,low,FALSE,Marketing newsletter with seasonal tips,FALSE,demo-msg-002
+2026-11-03T11:15:00Z,Billing Team <billing@example.com>,Invoice 1042 is due Friday,billing,medium,TRUE,Supplier reminder: invoice due Friday,TRUE,demo-msg-003
+2026-11-03T13:40:00Z,Priya Shah <priya.shah@example.com>,Reschedule our meeting?,scheduling,medium,TRUE,Asks to move Thursday meeting to Friday afternoon,TRUE,demo-msg-004

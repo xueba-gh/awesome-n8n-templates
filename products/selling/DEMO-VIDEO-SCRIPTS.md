@@ -56,6 +56,9 @@ Demo business: a small consultancy. Sheet: "Inbox Assistant demo log".
 
 ---
 
+## Demo data
+Fake-data CSVs for all three products are in `selling/demo-data/`. Import each into a new Google Sheet (File > Import > Replace current sheet) and name the tabs `Leads`, `Conversations` (plus a `Knowledge` tab from the product's template) and `Inbox log`.
+
 ## Recording checklist
 - [ ] Demo sheets created with fake data only (names like Jo Martin, Sam Carter; phone 555 numbers)
 - [ ] Credentials and account emails not visible (close n8n credential pages)

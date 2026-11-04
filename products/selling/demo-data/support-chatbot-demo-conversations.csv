@@ -1,0 +1,4 @@
+received_at,channel,session_id,name,contact,reason,summary,status
+2026-11-03T10:20:00Z,website,web-demo-001,Sam Carter,555 123 4567,callback,Customer asks about Invisalign (not in FAQ); wants a call back,new
+2026-11-03T15:02:00Z,website,web-demo-002,Maya Lopez,maya.lopez@example.com,booking help,Wants an emergency appointment tomorrow morning,new
+2026-11-04T08:41:00Z,website,web-demo-003,Ben Okafor,555 987 6543,pricing,Asked for a whitening quote beyond the listed prices,new

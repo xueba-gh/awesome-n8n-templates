@@ -7,7 +7,7 @@ Running checklist for the n8n products launch. Updated at the end of each task.
 | # | Task | Status |
 |---|---|---|
 | 1 | Live test with real accounts | Done (optional extras: Speed-to-Lead Booked/Replied/duplicate paths, Twilio, WhatsApp) |
-| 2 | Demo videos | In progress: shot scripts written (selling/DEMO-VIDEO-SCRIPTS.md); demo sheets and recordings next |
+| 2 | Demo videos | In progress: shot scripts written (selling/DEMO-VIDEO-SCRIPTS.md); fake-data demo CSVs for all three products in selling/demo-data/; Google demo sheets and recordings next |
 | 3 | Upwork profile | Not started |
 | 4 | Fiverr gigs | Not started |
 | 5 | n8n Creator Hub (free versions, affiliate) | Not started |
