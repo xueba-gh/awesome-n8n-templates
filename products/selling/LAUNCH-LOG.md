@@ -52,6 +52,10 @@ Observation: the first test run failed at 'Already in the sheet?' with Google 40
 
 Live test result (2026-11-04): test lead via webhook produced a Leads row (score 10, hot, status contacted), a reply email to the lead, and a hot-lead alert email to the owner. Connected Google account is a different address from the personal one, so mails arrived as sent from it.
 
+## Creator Hub bulk templates (100+ plan)
+
+- Demand research done; 130 ideas ranked in `products/creator-hub/IDEAS.md`. Waiting for user OK on batch 1 before building.
+
 ## Demo videos (unlisted links)
 
 - Speed-to-Lead: _
