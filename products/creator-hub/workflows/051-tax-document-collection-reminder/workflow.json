@@ -1,0 +1,258 @@
+{
+  "name": "Tax document collection reminder to clients",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "b33c2c46-8d1d-5423-b074-65efe186ff94",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Client documents\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "fbf7d9d4-8543-5c0c-9ae9-ab24de77bfd6",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "options": {}
+      },
+      "id": "7dd6cd03-d751-59ba-a44e-d23872318c03",
+      "name": "Read rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const daysSince = (v) => { const t = Date.parse(v); return isNaN(t) ? null : (Date.now() - t) / 86400000; };\nconst daysUntil = (v) => { const t = Date.parse(v); return isNaN(t) ? null : (t - Date.now()) / 86400000; };\nconst has = (v) => v !== undefined && v !== null && String(v).trim() !== '';\nconst cfg = $('Settings').first().json.config;\nreturn $input.all().filter((item) => {\n  const r = item.json;\n  return (!has(r.received) && (!has(r.last_reminder) || daysSince(r.last_reminder) >= 6));\n}).slice(0, 50);"
+      },
+      "id": "adae8807-3f6b-5f9d-80fb-fadba50715f6",
+      "name": "Find rows to act on",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Documents we still need, {{ $json.client_name }}",
+        "emailType": "text",
+        "message": "=Hi {{ $json.client_name }},\n\nTo finish your return we still need: {{ $json.missing_documents }}.\n\nYou can reply to this email with the files attached.\n\n{{ $('Settings').first().json.config.sender_name }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "0ef424e5-5c0a-5b06-b7d5-7f8ab7ce6cdc",
+      "name": "Send email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stamp = new Date().toISOString().slice(0, 10);\nreturn $('Find rows to act on').all().map((item) => ({ json: { row_number: item.json.row_number, \"last_reminder\": stamp } }));"
+      },
+      "id": "8b74547c-bdea-554d-ae4e-04bb81ba306f",
+      "name": "Mark rows as done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "3d498bd0-1357-566c-97b2-efeb679e14cc",
+      "name": "Update rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Tax document collection reminder to clients\nAccountants and bookkeepers: emails each client a checklist reminder until their documents are marked received.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "f5a82070-be61-520a-b70b-b1e03fcc58ea",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **Client documents** and these headers in row 1: see `sheet-headers.csv`.\n2. Open **Settings** and fill in your sheet URL, your email and names.\n3. Connect Google Sheets and Gmail on the nodes with warnings.\n4. Check the rule in **Find rows to act on** (it shows exactly which rows get an email) and the wording in **Send email**.\n5. Run it once by hand with a test row, then switch the workflow to **Active**.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "5e44dd10-80f5-5df5-a82f-98e1d29a6d3a",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read rows": {
+      "main": [
+        [
+          {
+            "node": "Find rows to act on",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find rows to act on": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email": {
+      "main": [
+        [
+          {
+            "node": "Mark rows as done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark rows as done": {
+      "main": [
+        [
+          {
+            "node": "Update rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -1,0 +1,255 @@
+{
+  "name": "Proposal follow-up chaser (sends a nudge after 3 and 7 days)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "7b3a0962-69ca-574e-8968-ca5df44a374e",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Proposals\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "71f6ebc3-f8f3-562f-9ff2-860c6144efa3",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "options": {}
+      },
+      "id": "36f97f5c-cf85-54f4-915f-1c2012ed549d",
+      "name": "Read rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const daysSince = (v) => { const t = Date.parse(v); return isNaN(t) ? null : (Date.now() - t) / 86400000; };\nconst daysUntil = (v) => { const t = Date.parse(v); return isNaN(t) ? null : (t - Date.now()) / 86400000; };\nconst has = (v) => v !== undefined && v !== null && String(v).trim() !== '';\nconst cfg = $('Settings').first().json.config;\nreturn $input.all().filter((item) => {\n  const r = item.json;\n  return (String(r.status).toLowerCase() === 'sent' && daysSince(r.sent_date) !== null && ((Number(r.nudges_sent || 0) === 0 && daysSince(r.sent_date) >= 3) || (Number(r.nudges_sent || 0) === 1 && daysSince(r.sent_date) >= 7)));\n}).slice(0, 50);"
+      },
+      "id": "4d74bec9-7d38-5c0f-845e-d3c0dc945e3b",
+      "name": "Find rows to act on",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Re: {{ $json.proposal }}",
+        "emailType": "text",
+        "message": "=Hi {{ $json.client_name }},\n\nJust checking you saw my proposal for {{ $json.proposal }}. Happy to answer any questions or adjust it.\n\n{{ $('Settings').first().json.config.sender_name }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "e6795e74-69d3-5725-a2d5-5646d9fcba43",
+      "name": "Send email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stamp = new Date().toISOString().slice(0, 10);\nreturn $('Find rows to act on').all().map((item) => ({ json: { row_number: item.json.row_number, \"last_nudge_at\": stamp } }));"
+      },
+      "id": "fc5a9f7c-6b33-55d8-8adf-0fe392d6f484",
+      "name": "Mark rows as done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "8edeb090-e478-5a91-9f2b-85a953dad274",
+      "name": "Update rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Proposal follow-up chaser (sends a nudge after 3 and 7 days)\nLooks at your proposals sheet and emails a friendly nudge when a proposal has had no answer for 3 days, and a last note after 7.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "309d4447-f587-55fc-b90e-2fea9d0cd57d",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **Proposals** and these headers in row 1: see `sheet-headers.csv`.\n2. Open **Settings** and fill in your sheet URL, your email and names.\n3. Connect Google Sheets and Gmail on the nodes with warnings.\n4. Check the rule in **Find rows to act on** (it shows exactly which rows get an email) and the wording in **Send email**.\n5. Run it once by hand with a test row, then switch the workflow to **Active**.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "90d50b7c-b415-5421-aa36-3ff0cd82cd70",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read rows": {
+      "main": [
+        [
+          {
+            "node": "Find rows to act on",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find rows to act on": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email": {
+      "main": [
+        [
+          {
+            "node": "Mark rows as done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark rows as done": {
+      "main": [
+        [
+          {
+            "node": "Update rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

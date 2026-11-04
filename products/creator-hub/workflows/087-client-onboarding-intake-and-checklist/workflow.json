@@ -1,0 +1,246 @@
+{
+  "name": "Client onboarding intake with welcome email and internal alert",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Client onboarding",
+        "formDescription": "Fill in the form and we'll be in touch.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "requiredField": true,
+              "fieldType": "email"
+            },
+            {
+              "fieldLabel": "Company",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Goals",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Start date",
+              "requiredField": false
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Send"
+        }
+      },
+      "id": "4341ba2f-29c5-53da-b0b4-633c762572b2",
+      "name": "Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "6e96d530-bbf9-50cd-a280-a0a0d3f56586"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Clients\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "e0817c4d-d9c0-5572-ac71-883c93c98976",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = (k) => String(k).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');\nfunction flatten(o, into = {}) {\n  for (const [k, v] of Object.entries(o || {})) {\n    if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, into);\n    else if (!(key(k) in into)) into[key(k)] = v;\n  }\n  return into;\n}\nconst FIELDS = [\"name\", \"email\", \"company\", \"goals\", \"start_date\"];\nreturn $input.all().map((item) => {\n  const { config, headers, params, query, webhookUrl, executionMode, ...rest } = item.json;\n  const d = flatten(rest.body || rest);\n  const out = { received_at: new Date().toISOString() };\n  for (const f of FIELDS) out[f] = d[f] === undefined || d[f] === null ? '' : String(d[f]).trim();\n  return { json: out };\n});"
+      },
+      "id": "12590e74-fbbe-58c9-bd40-92c6dbe001cd",
+      "name": "Clean up details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "0d7e688c-4be6-5ee3-956b-0c1ada2499b3",
+      "name": "Save to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Clean up details').item.json.email }}",
+        "subject": "=Welcome, {{ $('Clean up details').item.json.name }}! Next steps",
+        "emailType": "text",
+        "message": "=Hi {{ $('Clean up details').item.json.name }},\n\nThanks for the details. Here is what happens next:\n1. I review your goals ({{ $('Clean up details').item.json.goals }}).\n2. We confirm the plan before {{ $('Clean up details').item.json.start_date }}.\n3. You get a kickoff message.\n\n{{ $('Settings').first().json.config.sender_name }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "c7d5e8e0-e146-5cc4-b981-954abed1e44c",
+      "name": "Reply to them",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=New client: {{ $('Clean up details').item.json.company }}",
+        "emailType": "text",
+        "message": "={{ $('Clean up details').item.json.name }} ({{ $('Clean up details').item.json.email }}) from {{ $('Clean up details').item.json.company }}.\nGoals: {{ $('Clean up details').item.json.goals }}\nStart: {{ $('Clean up details').item.json.start_date }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "2aed7e01-de1a-5695-b965-9c9fd8d54d83",
+      "name": "Email me",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Client onboarding intake with welcome email and internal alert\nNew client fills in an intake form. They get a welcome email with next steps and your team gets the details.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "0a80de66-b861-5dd9-b076-50ac299c5c75",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Clients** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail).\n4. Fill in the built-in form (open the form URL from the **Form** node).\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "e60db604-17d6-5c9f-a7c5-8617d27896ef",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "Form": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Clean up details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up details": {
+      "main": [
+        [
+          {
+            "node": "Save to sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to sheet": {
+      "main": [
+        [
+          {
+            "node": "Reply to them",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to them": {
+      "main": [
+        [
+          {
+            "node": "Email me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

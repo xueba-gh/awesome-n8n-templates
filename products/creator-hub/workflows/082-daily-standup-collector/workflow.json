@@ -1,0 +1,212 @@
+{
+  "name": "Daily standup collector (form answers into one digest)",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Daily standup",
+        "formDescription": "Fill in the form and we'll be in touch.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Yesterday",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Today",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Blockers",
+              "requiredField": false
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Send"
+        }
+      },
+      "id": "bb24f68b-83b5-528a-bfa5-03bf2a10d5a8",
+      "name": "Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "5717bcdb-e971-5f08-8981-62fb1e582005"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Standups\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\",\n    \"slack_channel_id\": \"C0123456789\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "df4c34b2-f83c-5170-a86a-47a9a3beb7e2",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = (k) => String(k).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');\nfunction flatten(o, into = {}) {\n  for (const [k, v] of Object.entries(o || {})) {\n    if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, into);\n    else if (!(key(k) in into)) into[key(k)] = v;\n  }\n  return into;\n}\nconst FIELDS = [\"name\", \"yesterday\", \"today\", \"blockers\"];\nreturn $input.all().map((item) => {\n  const { config, headers, params, query, webhookUrl, executionMode, ...rest } = item.json;\n  const d = flatten(rest.body || rest);\n  const out = { received_at: new Date().toISOString() };\n  for (const f of FIELDS) out[f] = d[f] === undefined || d[f] === null ? '' : String(d[f]).trim();\n  return { json: out };\n});"
+      },
+      "id": "56820d30-a4fb-557d-923e-52e3c2004d1c",
+      "name": "Clean up details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "3bc465bc-fda0-522a-a9be-9912be63f691",
+      "name": "Save to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.config.slack_channel_id }}"
+        },
+        "text": "=Standup from {{ $('Clean up details').item.json.name }}\nYesterday: {{ $('Clean up details').item.json.yesterday }}\nToday: {{ $('Clean up details').item.json.today }}\nBlockers: {{ $('Clean up details').item.json.blockers }}",
+        "otherOptions": {}
+      },
+      "id": "841a495d-66c8-5a9d-bacb-657c508d4bb4",
+      "name": "Alert Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Daily standup collector (form answers into one digest)\nTeam members fill a 3-question form. Answers are logged in a sheet and posted to Slack as they come in.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "b600d12c-ff2e-56fe-b7ae-9f2a473d9eb3",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Standups** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Slack).\n4. Fill in the built-in form (open the form URL from the **Form** node).\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "093352e3-e803-5543-b245-0a48de247a60",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "Form": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Clean up details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up details": {
+      "main": [
+        [
+          {
+            "node": "Save to sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to sheet": {
+      "main": [
+        [
+          {
+            "node": "Alert Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

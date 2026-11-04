@@ -1,0 +1,352 @@
+{
+  "name": "Legal or consulting intake form with AI triage (no advice given)",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Tell us about your matter",
+        "formDescription": "Fill in the form and we'll be in touch.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "requiredField": true,
+              "fieldType": "email"
+            },
+            {
+              "fieldLabel": "Phone",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Matter",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Details",
+              "requiredField": false,
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Send"
+        }
+      },
+      "id": "4aa8b68a-ddc2-5c7c-a0cc-1215a81876c3",
+      "name": "Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "8582b96c-95d8-59a2-984b-0778e11f69f7"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Intake\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f4f28093-923d-50dd-8c79-702aa7f01bfa",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = (k) => String(k).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');\nfunction flatten(o, into = {}) {\n  for (const [k, v] of Object.entries(o || {})) {\n    if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, into);\n    else if (!(key(k) in into)) into[key(k)] = v;\n  }\n  return into;\n}\nconst FIELDS = [\"name\", \"email\", \"phone\", \"matter\", \"details\"];\nreturn $input.all().map((item) => {\n  const { config, headers, params, query, webhookUrl, executionMode, ...rest } = item.json;\n  const d = flatten(rest.body || rest);\n  const out = { received_at: new Date().toISOString() };\n  for (const f of FIELDS) out[f] = d[f] === undefined || d[f] === null ? '' : String(d[f]).trim();\n  return { json: out };\n});"
+      },
+      "id": "1a852012-ac9a-5b65-b96d-8ea7681fece4",
+      "name": "Clean up details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You triage new enquiries for {{ $('Settings').first().json.config.business_name }}. Classify the matter type (e.g. contract, employment, property, family, other), urgency (low, normal, high) and write a neutral one-sentence summary. Give no legal advice.\n\nDetails received:\n- Name: {{ $json.name || 'not given' }}\n- Email: {{ $json.email || 'not given' }}\n- Phone: {{ $json.phone || 'not given' }}\n- Matter: {{ $json.matter || 'not given' }}\n- Details: {{ $json.details || 'not given' }}",
+        "hasOutputParser": true
+      },
+      "id": "aa90b7b8-d765-5129-ae4f-6b806a942c6e",
+      "name": "AI: triage the matter",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "ded58de2-20f0-5dbd-b9db-04f2bf7a6adf",
+      "name": "AI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        720,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"matter_type\": \"employment\",\n  \"urgency\": \"normal\",\n  \"summary\": \"Asks about a contract dispute.\"\n}"
+      },
+      "id": "2b5b67df-3816-5700-935a-143adb12fe74",
+      "name": "AI output format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        920,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => ({ json: { ...$('Clean up details').all()[i].json, ...item.json.output } }));"
+      },
+      "id": "a31d6969-de7e-58ad-a1e1-11ae19447d6c",
+      "name": "Add AI results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "1809af95-776b-5017-a493-4f0ce0c04513",
+      "name": "Save to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Add AI results').item.json.email }}",
+        "subject": "=We received your enquiry",
+        "emailType": "text",
+        "message": "=Hi {{ $('Add AI results').item.json.name }},\n\nThank you for contacting {{ $('Settings').first().json.config.business_name }}. A member of the team will review your enquiry and respond. This message is an acknowledgement and not advice.\n\n{{ $('Settings').first().json.config.sender_name }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "b7dd8439-bddf-5710-808c-a1521d4dcb79",
+      "name": "Reply to them",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=New intake ({{ $('Add AI results').item.json.urgency }}): {{ $('Add AI results').item.json.matter_type }}",
+        "emailType": "text",
+        "message": "={{ $('Add AI results').item.json.summary }}\n\n{{ $('Add AI results').item.json.name }} {{ $('Add AI results').item.json.email }} {{ $('Add AI results').item.json.phone }}\n\n{{ $('Add AI results').item.json.details }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "807f7b16-266b-533d-9d8a-dfc4b0073764",
+      "name": "Email me",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Legal or consulting intake form with AI triage (no advice given)\nCollects enquiries for a law or consulting practice, has AI classify the matter type and urgency for the team, and sends the client an acknowledgement. The AI gives no advice.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "c669eb7b-e5c2-5877-a704-bc1647fe623d",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Intake** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail, OpenAI).\n4. Fill in the built-in form (open the form URL from the **Form** node).\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "e4b97561-2caf-5364-b5f0-3be242e1a308",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "Form": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Clean up details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: triage the matter",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI output format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: triage the matter",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up details": {
+      "main": [
+        [
+          {
+            "node": "AI: triage the matter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: triage the matter": {
+      "main": [
+        [
+          {
+            "node": "Add AI results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add AI results": {
+      "main": [
+        [
+          {
+            "node": "Save to sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to sheet": {
+      "main": [
+        [
+          {
+            "node": "Reply to them",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to them": {
+      "main": [
+        [
+          {
+            "node": "Email me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

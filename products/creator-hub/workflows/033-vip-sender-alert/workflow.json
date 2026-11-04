@@ -1,0 +1,438 @@
+{
+  "name": "VIP sender alert (important people never get buried)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "in:inbox -from:me",
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "0913b404-b71d-5313-b03a-f9fb55c55637",
+      "name": "New email",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"VIP log\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\",\n    \"vip_list\": \"boss@example.com, bigclient.com\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0ef516ae-75be-51db-8b4f-ce4abecb90e8",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((i) => {\n  const j = i.json;\n  const from = (j.from && j.from.value && j.from.value[0]) ? j.from.value[0] : {};\n  return { json: {\n    message_id: j.id, thread_id: j.threadId,\n    from_address: from.address || String(j.from || ''), from_name: from.name || '',\n    subject: j.subject || '', body: String(j.text || j.snippet || '').slice(0, 4000),\n    received_at: new Date().toISOString(),\n  } };\n});"
+      },
+      "id": "ca6ae425-b1d6-5887-afd7-ee3e044a1641",
+      "name": "Read the email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=VIP list: {{ $('Settings').first().json.config.vip_list }}. Decide if the sender matches the VIP list (exact address or domain). Give is_vip and a one-sentence summary of what they want.\n\nEmail:\nFrom: {{ $json.from_name }} <{{ $json.from_address }}>\nSubject: {{ $json.subject }}\n\n{{ $json.body }}",
+        "hasOutputParser": true
+      },
+      "id": "30b85dcc-9cd7-5e7d-8fc9-9ca4f76f7519",
+      "name": "AI: read the email",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "aeb3e780-ff56-5af5-97e1-e9d150c6c772",
+      "name": "AI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        720,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"is_vip\": true,\n  \"summary\": \"Asks for the report by Friday.\",\n  \"needs_reply\": true,\n  \"reply_draft\": \"Hi ...\"\n}"
+      },
+      "id": "5e50a37a-7a3d-50b6-ade1-757c53793e78",
+      "name": "AI output format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        920,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => ({ json: { ...$('Read the email').all()[i].json, ...item.json.output } }));"
+      },
+      "id": "d926b040-5f5a-5310-a184-fa39da67f710",
+      "name": "Combine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "6a8067b6-d9ce-5a54-874c-89a4a4594ab8",
+      "name": "Log to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1200,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((i) => { const r = i.json; return { json: { ...r, alert: Boolean(r.is_vip === true) } }; });"
+      },
+      "id": "1032625b-a41b-5523-bcba-6988786a790a",
+      "name": "Needs an alert?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "bfb8ff1f-ba60-5c59-ad58-a7a772b8bc9d",
+              "leftValue": "={{ $json.alert }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "1de3153b-738c-5b20-9b12-f3b40c0e230f",
+      "name": "Alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=VIP email: {{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.from_address }}: {{ $json.summary }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "c385e254-a845-533f-9b58-c76bbc909bec",
+      "name": "Email me an alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ce79b3bc-902c-5a2d-a295-cb7616da1d88",
+              "leftValue": "={{ $json.needs_reply }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "88392129-63fc-52c4-90d4-aa2f8807b5c5",
+      "name": "Reply needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "operation": "create",
+        "subject": "=Re: {{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.reply_draft }}",
+        "options": {
+          "threadId": "={{ $json.thread_id }}",
+          "sendTo": "={{ $json.from_address }}"
+        }
+      },
+      "id": "b96b643d-d62b-5d09-bf9d-1ad68486e725",
+      "name": "Save reply as draft",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## VIP sender alert (important people never get buried)\nEmails you a short alert whenever a message arrives from a person or domain on your VIP list, with an AI summary.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "8afbed6a-d7dc-5a42-9126-eb2739932e7a",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -560
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **VIP log** and paste the header row from `sheet-headers.csv`.\n2. Open **Settings**: sheet URL and your email.\n3. Connect Gmail (trigger and any Gmail node), Google Sheets and OpenAI on the nodes with warnings.\n4. The trigger checks unread mail matching `in:inbox -from:me` every minute. Change that search in **New email** to match your inbox.\n5. Send yourself a test from another address, check the result, then switch to **Active**. Nothing is ever sent to customers: replies are saved as drafts.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "39533430-32e7-5086-8b53-86be25aa670a",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -560
+      ]
+    }
+  ],
+  "connections": {
+    "AI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: read the email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI output format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: read the email",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New email": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read the email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the email": {
+      "main": [
+        [
+          {
+            "node": "AI: read the email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: read the email": {
+      "main": [
+        [
+          {
+            "node": "Combine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine": {
+      "main": [
+        [
+          {
+            "node": "Log to sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Needs an alert?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Reply needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs an alert?": {
+      "main": [
+        [
+          {
+            "node": "Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert?": {
+      "main": [
+        [
+          {
+            "node": "Email me an alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply needed?": {
+      "main": [
+        [
+          {
+            "node": "Save reply as draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

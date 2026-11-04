@@ -1,0 +1,305 @@
+{
+  "name": "Marketplace product title improver (Amazon, Etsy, eBay style)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "cb80a9ad-6a49-526e-b9bb-60af0180bf19",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Listings\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\",\n    \"rows_per_run\": 20\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "9aeaf677-2601-540c-8c47-80b4a1612e10",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "options": {}
+      },
+      "id": "2b5a8cff-80d4-5d2a-8ede-686b03808552",
+      "name": "Read rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst has = (v) => v !== undefined && v !== null && String(v).trim() !== '';\nreturn $input.all().filter((i) => has(i.json.current_title) && !has(i.json[\"better_title\"])).slice(0, Number(cfg.rows_per_run));"
+      },
+      "id": "a733472e-bfdb-5b5e-96d0-9ff1a64650c2",
+      "name": "Find rows to fill in",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Improve this {{ $json.platform }} product title: {{ $json.current_title }}. Keywords to work in naturally: {{ $json.keywords }}. Max 80 characters, readable, no all-caps, no false claims.",
+        "hasOutputParser": true
+      },
+      "id": "734ba721-d690-5085-9cf8-52ecbf062549",
+      "name": "AI: fill in the row",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "a85aae29-750f-5f79-8d82-fe8848de02f4",
+      "name": "AI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        960,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"better_title\": \"New title\"\n}"
+      },
+      "id": "f3f3daaf-df53-5726-95e6-745327cbf287",
+      "name": "AI output format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1160,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => ({ json: { row_number: $('Find rows to fill in').all()[i].json.row_number, ...item.json.output } }));"
+      },
+      "id": "60759491-8d82-587d-85d5-fbeda0def41b",
+      "name": "Match results to rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "42459f2d-2d7a-50dd-bb54-c6faa680112c",
+      "name": "Write back to the sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Marketplace product title improver (Amazon, Etsy, eBay style)\nRewrites weak product titles into clear, keyword-friendly ones without keyword stuffing.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "5764fccc-789d-5635-b080-43cf4ea2fbd9",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **Listings** and these headers in row 1 (see `sheet-headers.csv`).\n2. Fill the input columns (current_title). Leave better_title empty: the AI fills it.\n3. Open **Settings**: sheet URL and how many rows to process per run.\n4. Connect Google Sheets and OpenAI on the nodes with warnings.\n5. Run once by hand, check the results, then switch to **Active**. It only touches rows where better_title is empty.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "71f15336-e0ac-59b2-8c7d-9af2f8c277e6",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "AI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: fill in the row",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI output format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: fill in the row",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read rows": {
+      "main": [
+        [
+          {
+            "node": "Find rows to fill in",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find rows to fill in": {
+      "main": [
+        [
+          {
+            "node": "AI: fill in the row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: fill in the row": {
+      "main": [
+        [
+          {
+            "node": "Match results to rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match results to rows": {
+      "main": [
+        [
+          {
+            "node": "Write back to the sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

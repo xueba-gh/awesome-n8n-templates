@@ -1,0 +1,266 @@
+{
+  "name": "Daily sales summary email from an orders sheet",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "id": "4b1290f4-50ac-5d00-b33f-0e328fe84eb3",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Orders\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "7fa66eba-d6eb-5b1c-9be2-043c71a9f467",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "options": {}
+      },
+      "id": "f107f933-d019-5ba4-adfd-a835151c8510",
+      "name": "Read rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst rows = $input.all().map((i) => i.json).filter((r) => (String(r.date).slice(0, 10) === new Date().toISOString().slice(0, 10))).slice(0, 150);\nconst text = rows.map((r) => Object.entries(r).filter(([k]) => k !== 'row_number').map(([k, v]) => k + ': ' + v).join(' | ')).join('\\n');\nreturn [{ json: { count: rows.length, rows_text: text || 'No rows.' } }];"
+      },
+      "id": "ea885322-d8d2-5648-a4cf-e77c9f5bb882",
+      "name": "Prepare the rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a friendly store analyst. From today's orders give the order count, total revenue, best-selling product and anything unusual. Two or three sentences plus one suggestion.\n\nNumber of rows: {{ $json.count }}\nRows:\n{{ $json.rows_text }}",
+        "hasOutputParser": true
+      },
+      "id": "c018a1c1-722d-592e-81ac-fbdda2567309",
+      "name": "AI: write the summary",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "251ea8ea-b1a4-5903-aad5-81a0471f916e",
+      "name": "AI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        960,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"headline\": \"Short subject line\",\n  \"summary\": \"Two or three sentences.\",\n  \"actions\": \"- First action\\n- Second action\"\n}"
+      },
+      "id": "c8c027a4-adb4-5def-bebb-425305c2b468",
+      "name": "AI output format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1160,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=Today's sales: {{ $json.output.headline }}",
+        "emailType": "text",
+        "message": "={{ $json.output.summary }}\n\nWhat to do next:\n{{ $json.output.actions }}\n\n(Based on {{ $('Prepare the rows').first().json.count }} rows from your sheet.)",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "d22a2ad0-be7f-5336-8217-d384ff00a9a1",
+      "name": "Email the summary",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Daily sales summary email from an orders sheet\nEach evening emails a short summary of the day: orders, revenue and best seller.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "83207a3c-42f6-5fb9-9231-cfc092afd861",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **Orders** and these headers in row 1 (see `sheet-headers.csv`).\n2. Open **Settings**: sheet URL and the email that should receive the summary.\n3. Connect Google Sheets, Gmail and OpenAI on the nodes with warnings.\n4. Run once by hand to see the email, then switch the workflow to **Active** (it runs on the schedule in the first node).",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "31b60297-b341-5b99-8ce8-87d676a3373b",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "AI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: write the summary",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI output format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: write the summary",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read rows": {
+      "main": [
+        [
+          {
+            "node": "Prepare the rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare the rows": {
+      "main": [
+        [
+          {
+            "node": "AI: write the summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: write the summary": {
+      "main": [
+        [
+          {
+            "node": "Email the summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

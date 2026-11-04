@@ -1,0 +1,269 @@
+{
+  "name": "Weekly inbox report: volume, categories and slow replies",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                5
+              ],
+              "triggerAtHour": 15
+            }
+          ]
+        }
+      },
+      "id": "b8c9ecdd-e673-5bdf-ba28-a42980a0bfae",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Inbox log\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0015fe85-a3df-54a4-a252-ce0357f35413",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "options": {}
+      },
+      "id": "90632246-e2fe-5307-b156-9d63b416e391",
+      "name": "Read rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst rows = $input.all().map((i) => i.json).filter((r) => (true)).slice(0, 150);\nconst text = rows.map((r) => Object.entries(r).filter(([k]) => k !== 'row_number').map(([k, v]) => k + ': ' + v).join(' | ')).join('\\n');\nreturn [{ json: { count: rows.length, rows_text: text || 'No rows.' } }];"
+      },
+      "id": "fd84dc25-78a3-5868-93f2-06bd0580d347",
+      "name": "Prepare the rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You analyse a week of email metadata for a busy owner. Give totals by category, how many needed a reply, and one suggestion to reduce inbox load.\n\nNumber of rows: {{ $json.count }}\nRows:\n{{ $json.rows_text }}",
+        "hasOutputParser": true
+      },
+      "id": "fe2f0763-266e-5063-aa79-f1f5ef8e62dd",
+      "name": "AI: write the summary",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "92fa6c81-911f-5c73-88f7-c55abd6a7ad9",
+      "name": "AI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        960,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"headline\": \"Short subject line\",\n  \"summary\": \"Two or three sentences.\",\n  \"actions\": \"- First action\\n- Second action\"\n}"
+      },
+      "id": "e5c77768-2add-54b8-acb9-be6cdc497bab",
+      "name": "AI output format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1160,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "={{ $json.output.headline }}",
+        "emailType": "text",
+        "message": "={{ $json.output.summary }}\n\nWhat to do next:\n{{ $json.output.actions }}\n\n(Based on {{ $('Prepare the rows').first().json.count }} rows from your sheet.)",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "4bd2ce51-94e2-5e1e-b297-5d6f73b959c4",
+      "name": "Email the summary",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Weekly inbox report: volume, categories and slow replies\nSummarises your inbox log each Friday: how many emails by category, how many needed replies, and patterns worth acting on.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "b0b81273-4b74-570b-bdfa-e696cec37f22",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **Inbox log** and these headers in row 1 (see `sheet-headers.csv`).\n2. Open **Settings**: sheet URL and the email that should receive the summary.\n3. Connect Google Sheets, Gmail and OpenAI on the nodes with warnings.\n4. Run once by hand to see the email, then switch the workflow to **Active** (it runs on the schedule in the first node).",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "1d4158dd-b7c9-5832-8ac6-80c69881758c",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "AI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: write the summary",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI output format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: write the summary",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read rows": {
+      "main": [
+        [
+          {
+            "node": "Prepare the rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare the rows": {
+      "main": [
+        [
+          {
+            "node": "AI: write the summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: write the summary": {
+      "main": [
+        [
+          {
+            "node": "Email the summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

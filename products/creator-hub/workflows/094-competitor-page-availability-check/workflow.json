@@ -1,0 +1,253 @@
+{
+  "name": "Booking page availability watcher (appointment slots)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "3d96b334-f2f6-5b3a-982d-045d70d58a05",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"owner_email\": \"you@example.com\",\n    \"urls\": [\n      \"https://example.com/book\"\n    ],\n    \"keyword\": \"No availability\",\n    \"alert_when_found\": false\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "953af6db-bd18-5b5f-a102-df79944524f8",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Settings').first().json.config.urls.map((url) => ({ json: { url } }));"
+      },
+      "id": "326605b4-2d7d-55a4-b877-7e293e970cfa",
+      "name": "List what to check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "b300918b-1591-5d26-8f10-c9a7246c43ed",
+      "name": "Fetch the page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nreturn $input.all().map((item, i) => {\n  const $json = item.json;\n  const url = $('List what to check').all()[i].json.url;\n  const body = String($json.body || $json.data || '');\n  const kw = String(cfg.keyword || '').toLowerCase();\n  const found = body.toLowerCase().includes(kw);\n  const problem = cfg.alert_when_found ? found : !found;\n  const detail = found ? 'Found \"' + cfg.keyword + '\" on the page' : 'Did not find \"' + cfg.keyword + '\" on the page';\n  return { json: { url, problem, detail, checked_at: new Date().toISOString() } };\n});"
+      },
+      "id": "d8b476bc-230e-585d-8c99-ceda908124c8",
+      "name": "Judge the result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "798a4949-3b03-5840-8c97-f386b9c9367b",
+              "leftValue": "={{ $json.problem }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "76c60f57-1dd1-53a3-ba3f-9cee14bc026e",
+      "name": "Problem found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=Slots may be open: {{ $json.url }}",
+        "emailType": "text",
+        "message": "={{ $json.detail }}\n{{ $json.url }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "ada44c50-fec8-5dff-b410-31531c88070c",
+      "name": "Email me the alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Booking page availability watcher (appointment slots)\nChecks a booking page and alerts you when the 'No availability' message goes away, so you can grab a slot.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "153879be-d9d8-52f0-a2a8-f239d020c92d",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Open **Settings** and list the addresses to check (and your email). Set **keyword** to the sold-out wording on the page.\n2. Connect Gmail on **Email me the alert**.\n3. Run it once by hand, look at **Judge the result** to see what it found, then switch to **Active**.\n4. It only emails you when something is wrong, so a quiet inbox means all is well.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "b7a0b7ed-2e3b-5bc0-9f6d-2f146da546c4",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "List what to check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List what to check": {
+      "main": [
+        [
+          {
+            "node": "Fetch the page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch the page": {
+      "main": [
+        [
+          {
+            "node": "Judge the result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Judge the result": {
+      "main": [
+        [
+          {
+            "node": "Problem found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Problem found?": {
+      "main": [
+        [
+          {
+            "node": "Email me the alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

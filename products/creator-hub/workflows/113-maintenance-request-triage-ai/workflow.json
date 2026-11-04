@@ -1,0 +1,393 @@
+{
+  "name": "Property maintenance request triage with AI urgency",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Report a maintenance issue",
+        "formDescription": "Fill in the form and we'll be in touch.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "requiredField": true,
+              "fieldType": "email"
+            },
+            {
+              "fieldLabel": "Unit",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Issue",
+              "requiredField": false
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Send"
+        }
+      },
+      "id": "2dc37a21-0566-55c5-95eb-c86b13a96d30",
+      "name": "Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "20b5f80a-c7f3-5ce7-b633-422a6d47bcf4"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Maintenance requests\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "cbff049b-d44e-5c47-8f0c-ca084fa73c2e",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = (k) => String(k).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');\nfunction flatten(o, into = {}) {\n  for (const [k, v] of Object.entries(o || {})) {\n    if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, into);\n    else if (!(key(k) in into)) into[key(k)] = v;\n  }\n  return into;\n}\nconst FIELDS = [\"name\", \"email\", \"unit\", \"issue\"];\nreturn $input.all().map((item) => {\n  const { config, headers, params, query, webhookUrl, executionMode, ...rest } = item.json;\n  const d = flatten(rest.body || rest);\n  const out = { received_at: new Date().toISOString() };\n  for (const f of FIELDS) out[f] = d[f] === undefined || d[f] === null ? '' : String(d[f]).trim();\n  return { json: out };\n});"
+      },
+      "id": "1092a54f-3b1b-5d08-ac81-20568cb2adbb",
+      "name": "Clean up details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You triage maintenance requests for a property manager. Rate urgency (emergency only for flooding, gas smell, no heating in winter, fire or safety risk; otherwise normal or low) and name the trade needed (plumber, electrician, general, other). One-sentence summary.\n\nDetails received:\n- Name: {{ $json.name || 'not given' }}\n- Email: {{ $json.email || 'not given' }}\n- Unit: {{ $json.unit || 'not given' }}\n- Issue: {{ $json.issue || 'not given' }}",
+        "hasOutputParser": true
+      },
+      "id": "c2f6cf6e-6763-5dfc-a870-eab86d1bdf6f",
+      "name": "AI: triage the request",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "07f496bc-4b9b-54af-9d2e-bed5452b83a8",
+      "name": "AI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        720,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"urgency\": \"normal\",\n  \"trade\": \"plumber\",\n  \"summary\": \"Dripping tap in the kitchen.\"\n}"
+      },
+      "id": "10432a0c-53db-5cb1-9cab-e0116ddb6894",
+      "name": "AI output format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        920,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => ({ json: { ...$('Clean up details').all()[i].json, ...item.json.output } }));"
+      },
+      "id": "f80e37dd-fd28-584a-8f99-a099752c3103",
+      "name": "Add AI results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "683b2bf8-b0a3-543c-882c-342737cd3bb6",
+      "name": "Save to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Add AI results').item.json.email }}",
+        "subject": "=We received your maintenance request",
+        "emailType": "text",
+        "message": "=Hi {{ $('Add AI results').item.json.name }},\n\nWe logged your request for unit {{ $('Add AI results').item.json.unit }}. If this is an emergency (flood, gas smell, fire) please call the emergency line now.\n\n{{ $('Settings').first().json.config.business_name }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "7d39effe-cb0a-5717-8267-29ec97c6ec5e",
+      "name": "Reply to them",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ba7ffe87-c226-5040-822e-858d0c449631",
+              "leftValue": "={{ $('Add AI results').item.json.urgency === 'emergency' }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "19065493-4515-5d1c-bedf-11654c4c2ac8",
+      "name": "Worth alerting?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=EMERGENCY maintenance: unit {{ $('Add AI results').item.json.unit }}",
+        "emailType": "text",
+        "message": "={{ $('Add AI results').item.json.summary }}\nTrade: {{ $('Add AI results').item.json.trade }}\n{{ $('Add AI results').item.json.name }} {{ $('Add AI results').item.json.email }}\n\n{{ $('Add AI results').item.json.issue }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "35886f41-e548-5add-8544-0aaf14ce38ea",
+      "name": "Email me",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1920,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Property maintenance request triage with AI urgency\nTenants submit a request. AI rates the urgency and trade needed, and you are emailed immediately for emergencies.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "d43eec60-c609-5d80-9272-4b5ef15b7298",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Maintenance requests** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail, OpenAI).\n4. Fill in the built-in form (open the form URL from the **Form** node).\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "16490a9f-5867-5acd-ba66-9bd8baf816d5",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "Form": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Clean up details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: triage the request",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI output format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: triage the request",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up details": {
+      "main": [
+        [
+          {
+            "node": "AI: triage the request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: triage the request": {
+      "main": [
+        [
+          {
+            "node": "Add AI results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add AI results": {
+      "main": [
+        [
+          {
+            "node": "Save to sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to sheet": {
+      "main": [
+        [
+          {
+            "node": "Reply to them",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to them": {
+      "main": [
+        [
+          {
+            "node": "Worth alerting?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Worth alerting?": {
+      "main": [
+        [
+          {
+            "node": "Email me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

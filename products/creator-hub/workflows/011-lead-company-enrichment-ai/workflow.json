@@ -1,0 +1,305 @@
+{
+  "name": "Lead company enrichment with AI (industry and size guess)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "a33bfdcd-0b6a-543f-a733-096f94457187",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Leads\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\",\n    \"rows_per_run\": 20\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0b2b1788-3c9f-5ba5-ba3d-d5ab7fb91398",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "options": {}
+      },
+      "id": "5f694060-3484-5777-b2dd-8d910127cd0e",
+      "name": "Read rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst has = (v) => v !== undefined && v !== null && String(v).trim() !== '';\nreturn $input.all().filter((i) => has(i.json.company) && !has(i.json[\"industry\"])).slice(0, Number(cfg.rows_per_run));"
+      },
+      "id": "a890e57f-a02d-5f9f-92f1-33b1094d43db",
+      "name": "Find rows to fill in",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Company: {{ $json.company }}\nWebsite: {{ $json.website }}\nGive a likely industry and a one-sentence outreach angle for a small service business. If unsure, say 'unknown'. Do not invent facts.",
+        "hasOutputParser": true
+      },
+      "id": "f25a1409-c10d-5f53-a071-2fcd8eef08c9",
+      "name": "AI: fill in the row",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "6ea374ae-ac84-5ec8-a19c-2de384d0c9e9",
+      "name": "AI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        960,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"industry\": \"Dental clinic\",\n  \"outreach_angle\": \"Offer faster reply to new patient enquiries.\"\n}"
+      },
+      "id": "2739d328-8851-58d5-ab96-d52e9a8b5117",
+      "name": "AI output format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1160,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => ({ json: { row_number: $('Find rows to fill in').all()[i].json.row_number, ...item.json.output } }));"
+      },
+      "id": "3a1ab84c-e179-5235-bfae-933e974bd127",
+      "name": "Match results to rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "508e379d-4a86-571b-b383-29e66eb8eb16",
+      "name": "Write back to the sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Lead company enrichment with AI (industry and size guess)\nFor each new lead with a company name and website, fills in a likely industry and a short outreach angle. Meant as a quick first pass, always double-check.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "0192c34d-3653-5d7d-9fd1-b1ff121c67a9",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **Leads** and these headers in row 1 (see `sheet-headers.csv`).\n2. Fill the input columns (company). Leave industry, outreach_angle empty: the AI fills it.\n3. Open **Settings**: sheet URL and how many rows to process per run.\n4. Connect Google Sheets and OpenAI on the nodes with warnings.\n5. Run once by hand, check the results, then switch to **Active**. It only touches rows where industry is empty.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "a961997d-b5d8-51d5-ad71-86d6143e430f",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "AI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: fill in the row",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI output format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: fill in the row",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read rows": {
+      "main": [
+        [
+          {
+            "node": "Find rows to fill in",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find rows to fill in": {
+      "main": [
+        [
+          {
+            "node": "AI: fill in the row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: fill in the row": {
+      "main": [
+        [
+          {
+            "node": "Match results to rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match results to rows": {
+      "main": [
+        [
+          {
+            "node": "Write back to the sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

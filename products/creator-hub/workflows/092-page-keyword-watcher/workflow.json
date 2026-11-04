@@ -1,0 +1,253 @@
+{
+  "name": "Page keyword watcher (alert when text appears or disappears)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "f8f06f24-94cb-5751-94bf-c8a6eac3c3eb",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"owner_email\": \"you@example.com\",\n    \"urls\": [\n      \"https://example.com/product\"\n    ],\n    \"keyword\": \"Out of stock\",\n    \"alert_when_found\": false\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "7e656b44-3908-576b-a78f-f097e0df1848",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Settings').first().json.config.urls.map((url) => ({ json: { url } }));"
+      },
+      "id": "1bca64b6-2a97-5463-83ea-f4f2912dd33c",
+      "name": "List what to check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "5b52a353-4edc-54c5-983a-3ed3b6b2a6e6",
+      "name": "Fetch the page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nreturn $input.all().map((item, i) => {\n  const $json = item.json;\n  const url = $('List what to check').all()[i].json.url;\n  const body = String($json.body || $json.data || '');\n  const kw = String(cfg.keyword || '').toLowerCase();\n  const found = body.toLowerCase().includes(kw);\n  const problem = cfg.alert_when_found ? found : !found;\n  const detail = found ? 'Found \"' + cfg.keyword + '\" on the page' : 'Did not find \"' + cfg.keyword + '\" on the page';\n  return { json: { url, problem, detail, checked_at: new Date().toISOString() } };\n});"
+      },
+      "id": "a52dfb37-72fb-5e1d-a0f3-a2f3d76f0179",
+      "name": "Judge the result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "bae15fe8-8091-5726-89a0-9fcde98b3a70",
+              "leftValue": "={{ $json.problem }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "613d03bc-ef33-5824-85ab-aca2e57a9fc1",
+      "name": "Problem found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=Page changed: {{ $json.url }}",
+        "emailType": "text",
+        "message": "={{ $json.detail }}\n{{ $json.url }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "9cffe4ad-607c-5da1-a0a3-db2ece79e168",
+      "name": "Email me the alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Page keyword watcher (alert when text appears or disappears)\nWatches a page for a phrase. With the defaults it alerts you when the phrase 'In stock' is missing; flip one setting to alert when a phrase appears.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "0fde75d5-d29d-599c-a485-e67488fb3bd1",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Open **Settings** and list the addresses to check (and your email). Set **keyword** and **alert_when_found** (true = alert when the phrase appears, false = alert when it is missing).\n2. Connect Gmail on **Email me the alert**.\n3. Run it once by hand, look at **Judge the result** to see what it found, then switch to **Active**.\n4. It only emails you when something is wrong, so a quiet inbox means all is well.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "ce73e1db-56c7-5a97-8ead-70e0eba10d4f",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "List what to check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List what to check": {
+      "main": [
+        [
+          {
+            "node": "Fetch the page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch the page": {
+      "main": [
+        [
+          {
+            "node": "Judge the result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Judge the result": {
+      "main": [
+        [
+          {
+            "node": "Problem found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Problem found?": {
+      "main": [
+        [
+          {
+            "node": "Email me the alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

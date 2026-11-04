@@ -1,0 +1,305 @@
+{
+  "name": "Release notes writer from commit messages",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "b858b805-2ff3-5276-a418-a8db63e3d33b",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Releases\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\",\n    \"rows_per_run\": 5\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "614e6f70-1f7c-543f-85ba-15ddbd3658ad",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "options": {}
+      },
+      "id": "a956e25d-fa3b-595e-8329-043dae40da3a",
+      "name": "Read rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst has = (v) => v !== undefined && v !== null && String(v).trim() !== '';\nreturn $input.all().filter((i) => has(i.json.raw_changes) && !has(i.json[\"release_notes\"])).slice(0, Number(cfg.rows_per_run));"
+      },
+      "id": "733ce930-1d42-5852-bb6a-09d8d6e7a9e1",
+      "name": "Find rows to fill in",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Turn these raw changes for version {{ $json.version }} into friendly release notes for customers: group into New, Improved and Fixed, plain language, no internal jargon, only what is listed.\n\n{{ $json.raw_changes }}",
+        "hasOutputParser": true
+      },
+      "id": "a3d527b7-c7df-5687-84b5-6a1813d195dd",
+      "name": "AI: fill in the row",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "19a4b985-533d-5e5c-89d8-d3c8bd6086d4",
+      "name": "AI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        960,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"release_notes\": \"New: ...\\nImproved: ...\\nFixed: ...\"\n}"
+      },
+      "id": "50593d3f-6870-5f9f-a8f2-41aea8916329",
+      "name": "AI output format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1160,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => ({ json: { row_number: $('Find rows to fill in').all()[i].json.row_number, ...item.json.output } }));"
+      },
+      "id": "7e8199ad-2d5c-50d6-911e-e96436e9db99",
+      "name": "Match results to rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "1aa49e4a-8ae7-50dd-83d7-b184a52fefea",
+      "name": "Write back to the sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Release notes writer from commit messages\nPaste commit messages or ticket titles into a sheet row. AI turns them into friendly, customer-facing release notes.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "3f82018d-dcd1-5f3d-87dd-15c4eaec7efd",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **Releases** and these headers in row 1 (see `sheet-headers.csv`).\n2. Fill the input columns (raw_changes). Leave release_notes empty: the AI fills it.\n3. Open **Settings**: sheet URL and how many rows to process per run.\n4. Connect Google Sheets and OpenAI on the nodes with warnings.\n5. Run once by hand, check the results, then switch to **Active**. It only touches rows where release_notes is empty.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "daa93a8e-cabd-58b3-b37b-f31eb5d280e5",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "AI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: fill in the row",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI output format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: fill in the row",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read rows": {
+      "main": [
+        [
+          {
+            "node": "Find rows to fill in",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find rows to fill in": {
+      "main": [
+        [
+          {
+            "node": "AI: fill in the row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: fill in the row": {
+      "main": [
+        [
+          {
+            "node": "Match results to rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match results to rows": {
+      "main": [
+        [
+          {
+            "node": "Write back to the sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

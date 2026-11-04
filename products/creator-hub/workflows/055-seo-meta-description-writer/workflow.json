@@ -1,0 +1,305 @@
+{
+  "name": "SEO title and meta description writer for a list of pages",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "3632e7c5-4d83-5718-8a25-cd27484e62e1",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Pages\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\",\n    \"rows_per_run\": 20\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "919424f1-e54c-5a0f-a167-4fb64a8c187b",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "options": {}
+      },
+      "id": "9a932b33-3750-5d32-91b1-fbc23f5764d8",
+      "name": "Read rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst has = (v) => v !== undefined && v !== null && String(v).trim() !== '';\nreturn $input.all().filter((i) => has(i.json.topic) && !has(i.json[\"seo_title\"])).slice(0, Number(cfg.rows_per_run));"
+      },
+      "id": "ff75d288-2405-5741-b4f5-82de8f35561f",
+      "name": "Find rows to fill in",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write an SEO title (max 60 characters) and meta description (max 155 characters) for a page about: {{ $json.topic }}. Main keyword: {{ $json.keyword }}. Natural language, no clickbait, no made-up claims.",
+        "hasOutputParser": true
+      },
+      "id": "d6ab185f-09ea-5541-9a42-44806ff586b8",
+      "name": "AI: fill in the row",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "3f3eb5a5-5d60-53fe-be54-b28bdd443c44",
+      "name": "AI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        960,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"seo_title\": \"Title\",\n  \"meta_description\": \"Description\"\n}"
+      },
+      "id": "b7e4cde6-1d08-56f4-ae45-6e2a5761c374",
+      "name": "AI output format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1160,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => ({ json: { row_number: $('Find rows to fill in').all()[i].json.row_number, ...item.json.output } }));"
+      },
+      "id": "d2d6eb38-2a41-52e5-bb9e-690ad9351369",
+      "name": "Match results to rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "20ab5fb6-da43-5105-b0b5-b0f245da1d09",
+      "name": "Write back to the sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## SEO title and meta description writer for a list of pages\nList your page URLs and topics in a sheet. The AI writes an SEO title and meta description for each one that does not have one.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "d8832090-ebab-5853-89bd-8ac7fcd55f04",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **Pages** and these headers in row 1 (see `sheet-headers.csv`).\n2. Fill the input columns (topic). Leave seo_title, meta_description empty: the AI fills it.\n3. Open **Settings**: sheet URL and how many rows to process per run.\n4. Connect Google Sheets and OpenAI on the nodes with warnings.\n5. Run once by hand, check the results, then switch to **Active**. It only touches rows where seo_title is empty.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "c84c6913-906a-5591-b630-61724e63ff3d",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "AI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: fill in the row",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI output format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: fill in the row",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read rows": {
+      "main": [
+        [
+          {
+            "node": "Find rows to fill in",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find rows to fill in": {
+      "main": [
+        [
+          {
+            "node": "AI: fill in the row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: fill in the row": {
+      "main": [
+        [
+          {
+            "node": "Match results to rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match results to rows": {
+      "main": [
+        [
+          {
+            "node": "Write back to the sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

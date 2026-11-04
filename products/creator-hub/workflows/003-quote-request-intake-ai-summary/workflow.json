@@ -1,0 +1,352 @@
+{
+  "name": "Quote request intake with AI summary and auto-reply",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Request a quote",
+        "formDescription": "Fill in the form and we'll be in touch.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "requiredField": true,
+              "fieldType": "email"
+            },
+            {
+              "fieldLabel": "Phone",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Service",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Details",
+              "requiredField": false,
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Send"
+        }
+      },
+      "id": "878d62a7-a41d-5255-a162-23f727707b65",
+      "name": "Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "cfe1cb36-8804-50b8-a8a6-e5979a75d1be"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Quote requests\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "dbad2720-7b7a-5d7f-8386-1bbad383bf2c",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = (k) => String(k).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');\nfunction flatten(o, into = {}) {\n  for (const [k, v] of Object.entries(o || {})) {\n    if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, into);\n    else if (!(key(k) in into)) into[key(k)] = v;\n  }\n  return into;\n}\nconst FIELDS = [\"name\", \"email\", \"phone\", \"service\", \"details\"];\nreturn $input.all().map((item) => {\n  const { config, headers, params, query, webhookUrl, executionMode, ...rest } = item.json;\n  const d = flatten(rest.body || rest);\n  const out = { received_at: new Date().toISOString() };\n  for (const f of FIELDS) out[f] = d[f] === undefined || d[f] === null ? '' : String(d[f]).trim();\n  return { json: out };\n});"
+      },
+      "id": "289c11c0-bdf8-53d5-8e36-5195cc5b16ab",
+      "name": "Clean up details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You help {{ $('Settings').first().json.config.business_name }} handle quote requests. Write a two-sentence job summary, list the details still missing that you would need to quote (or 'none'), and rate urgency as low, normal or high.\n\nDetails received:\n- Name: {{ $json.name || 'not given' }}\n- Email: {{ $json.email || 'not given' }}\n- Phone: {{ $json.phone || 'not given' }}\n- Service: {{ $json.service || 'not given' }}\n- Details: {{ $json.details || 'not given' }}",
+        "hasOutputParser": true
+      },
+      "id": "441a4c58-f87b-5d8e-ad5d-3c343f31f7f9",
+      "name": "AI: summarise the request",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "eb380cc8-1da2-589e-aaf8-7c7fc64c9d79",
+      "name": "AI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        720,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"job_summary\": \"Replace two taps in a kitchen.\",\n  \"missing_details\": \"Photos, preferred dates\",\n  \"urgency\": \"normal\"\n}"
+      },
+      "id": "d771ead7-b5e8-5ff2-a38f-aa06e9db50ee",
+      "name": "AI output format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        920,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => ({ json: { ...$('Clean up details').all()[i].json, ...item.json.output } }));"
+      },
+      "id": "c5c3e101-7775-502f-8df5-79160fd0d72c",
+      "name": "Add AI results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "3f8130b0-2d44-5564-9714-6ca6d1a36942",
+      "name": "Save to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Add AI results').item.json.email }}",
+        "subject": "=We received your quote request",
+        "emailType": "text",
+        "message": "=Hi {{ $('Add AI results').item.json.name }},\n\nThanks for asking about {{ $('Add AI results').item.json.service }}. We'll send your quote soon. To make it accurate it helps to know: {{ $('Add AI results').item.json.missing_details }}.\n\n{{ $('Settings').first().json.config.sender_name }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "e1887ad1-36f7-5df4-89b3-28202f4a8682",
+      "name": "Reply to them",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=Quote request ({{ $('Add AI results').item.json.urgency }}): {{ $('Add AI results').item.json.service }} from {{ $('Add AI results').item.json.name }}",
+        "emailType": "text",
+        "message": "={{ $('Add AI results').item.json.job_summary }}\n\nMissing: {{ $('Add AI results').item.json.missing_details }}\nContact: {{ $('Add AI results').item.json.email }}, {{ $('Add AI results').item.json.phone }}\n\nOriginal details:\n{{ $('Add AI results').item.json.details }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "e9122d79-a630-5c21-afb4-5343ce7af861",
+      "name": "Email me",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Quote request intake with AI summary and auto-reply\nCollects quote requests, has AI turn the free text into a clean job summary with missing details to ask about, and sends the customer a confirmation.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "7f3f44b6-39c4-5e95-907c-dbb2c0c13469",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Quote requests** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail, OpenAI).\n4. Fill in the built-in form (open the form URL from the **Form** node).\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "6b7d9843-2d6c-5de9-b3c8-b1fc998fb2e9",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "Form": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Clean up details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: summarise the request",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI output format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: summarise the request",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up details": {
+      "main": [
+        [
+          {
+            "node": "AI: summarise the request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: summarise the request": {
+      "main": [
+        [
+          {
+            "node": "Add AI results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add AI results": {
+      "main": [
+        [
+          {
+            "node": "Save to sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to sheet": {
+      "main": [
+        [
+          {
+            "node": "Reply to them",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to them": {
+      "main": [
+        [
+          {
+            "node": "Email me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

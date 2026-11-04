@@ -1,0 +1,272 @@
+{
+  "name": "Supplier invoice emails to sheet (vendor, amount, due date, AI extraction)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "in:inbox (invoice OR bill) -from:me",
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "9782522a-b1b3-55e0-8a8e-558cbfd594cd",
+      "name": "New email",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Payables\",\n    \"owner_email\": \"you@example.com\",\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "022865ab-ef24-5336-9224-597cb08cc13d",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((i) => {\n  const j = i.json;\n  const from = (j.from && j.from.value && j.from.value[0]) ? j.from.value[0] : {};\n  return { json: {\n    message_id: j.id, thread_id: j.threadId,\n    from_address: from.address || String(j.from || ''), from_name: from.name || '',\n    subject: j.subject || '', body: String(j.text || j.snippet || '').slice(0, 4000),\n    received_at: new Date().toISOString(),\n  } };\n});"
+      },
+      "id": "c5b91a52-d280-50fb-a26c-0d320ecb83d0",
+      "name": "Read the email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Extract invoice details from this email text. is_invoice, vendor, invoice_number, amount (number), currency, due_date (YYYY-MM-DD or empty). Leave unknowns empty, never guess.\n\nEmail:\nFrom: {{ $json.from_name }} <{{ $json.from_address }}>\nSubject: {{ $json.subject }}\n\n{{ $json.body }}",
+        "hasOutputParser": true
+      },
+      "id": "43006fda-30b6-5770-af93-9e6e8d13b7f6",
+      "name": "AI: read the email",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "1598aead-4cfc-5d5d-b77a-4427bd880ce3",
+      "name": "AI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        720,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"is_invoice\": true,\n  \"vendor\": \"Acme Supplies\",\n  \"invoice_number\": \"INV-1042\",\n  \"amount\": 420.5,\n  \"currency\": \"USD\",\n  \"due_date\": \"2026-12-01\"\n}"
+      },
+      "id": "6976f3e7-228e-547b-b120-ea1beb7571a5",
+      "name": "AI output format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        920,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => ({ json: { ...$('Read the email').all()[i].json, ...item.json.output } }));"
+      },
+      "id": "5c11d46d-6d56-5fec-9df5-2310b0304a59",
+      "name": "Combine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "dc11d34a-5667-520e-9a1f-57e2a59da1a2",
+      "name": "Log to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1200,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Supplier invoice emails to sheet (vendor, amount, due date, AI extraction)\nReads invoice emails, extracts vendor, invoice number, amount and due date, and adds a row to your payables sheet.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "b437de42-ef54-5d26-a3a2-c640cc75552b",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -560
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Payables** and paste the header row from `sheet-headers.csv`.\n2. Open **Settings**: sheet URL and your email.\n3. Connect Gmail (trigger and any Gmail node), Google Sheets and OpenAI on the nodes with warnings.\n4. The trigger checks unread mail matching `in:inbox (invoice OR bill) -from:me` every minute. Change that search in **New email** to match your inbox.\n5. Send yourself a test from another address, check the result, then switch to **Active**.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "68a77ab4-01fc-5934-a3db-d81c82f1e075",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -560
+      ]
+    }
+  ],
+  "connections": {
+    "AI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: read the email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI output format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: read the email",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New email": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read the email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the email": {
+      "main": [
+        [
+          {
+            "node": "AI: read the email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: read the email": {
+      "main": [
+        [
+          {
+            "node": "Combine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine": {
+      "main": [
+        [
+          {
+            "node": "Log to sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

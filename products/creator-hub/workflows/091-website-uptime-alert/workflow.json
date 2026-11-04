@@ -1,0 +1,253 @@
+{
+  "name": "Website uptime monitor with email alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "d41d9b1a-b16a-5b71-a463-5e8d27b64f37",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"owner_email\": \"you@example.com\",\n    \"urls\": [\n      \"https://example.com\"\n    ]\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "d6b0fbcf-cc48-5155-9116-a8963ea0279f",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Settings').first().json.config.urls.map((url) => ({ json: { url } }));"
+      },
+      "id": "4e68d0e2-c0d9-5740-ac9f-260a3ce0b466",
+      "name": "List what to check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "0254c376-2daa-58b0-b890-42f3e54f1c01",
+      "name": "Fetch the page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nreturn $input.all().map((item, i) => {\n  const $json = item.json;\n  const url = $('List what to check').all()[i].json.url;\n  const code = Number($json.statusCode || 0);\n  const problem = !(code >= 200 && code < 400);\n  const detail = problem ? 'Status ' + (code || 'no answer') : 'OK';\n  return { json: { url, problem, detail, checked_at: new Date().toISOString() } };\n});"
+      },
+      "id": "45b09608-c566-5f15-b713-de00295f219b",
+      "name": "Judge the result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "01c5655f-8df2-5320-bb06-e2f0fbaed20d",
+              "leftValue": "={{ $json.problem }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "b9ad2e32-32c9-5a71-9d0f-0f57c5a2ba7c",
+      "name": "Problem found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=Site down: {{ $json.url }}",
+        "emailType": "text",
+        "message": "={{ $json.url }}\n{{ $json.detail }}\nChecked at {{ $json.checked_at }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "4a5d215f-b312-5123-9f5f-90b243a71bc9",
+      "name": "Email me the alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Website uptime monitor with email alert\nChecks your websites every 5 minutes and emails you when one stops answering.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "153b2964-1873-5c35-88b0-2ef6413a3e3a",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Open **Settings** and list the addresses to check (and your email).\n2. Connect Gmail on **Email me the alert**.\n3. Run it once by hand, look at **Judge the result** to see what it found, then switch to **Active**.\n4. It only emails you when something is wrong, so a quiet inbox means all is well.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "253052dc-13c0-551c-81a9-a6ad19284842",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "List what to check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List what to check": {
+      "main": [
+        [
+          {
+            "node": "Fetch the page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch the page": {
+      "main": [
+        [
+          {
+            "node": "Judge the result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Judge the result": {
+      "main": [
+        [
+          {
+            "node": "Problem found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Problem found?": {
+      "main": [
+        [
+          {
+            "node": "Email me the alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

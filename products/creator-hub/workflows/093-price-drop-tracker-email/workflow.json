@@ -1,0 +1,253 @@
+{
+  "name": "Price drop tracker with email alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "83bc4605-5db9-5bb4-84bf-a6850debebfc",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"owner_email\": \"you@example.com\",\n    \"urls\": [\n      \"https://example.com/product\"\n    ],\n    \"price_regex\": \"\\\\$\\\\s?([0-9][0-9,]*\\\\.?[0-9]*)\",\n    \"target_price\": 100\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "5a985ce7-e875-56d4-8554-214c45e88353",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Settings').first().json.config.urls.map((url) => ({ json: { url } }));"
+      },
+      "id": "49783890-f3d3-5d7e-bb7b-95a7ef570981",
+      "name": "List what to check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "457b6b5d-953c-58e0-be28-bde111cd3526",
+      "name": "Fetch the page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nreturn $input.all().map((item, i) => {\n  const $json = item.json;\n  const url = $('List what to check').all()[i].json.url;\n  const body = String($json.body || $json.data || '');\n  const m = body.match(new RegExp(cfg.price_regex));\n  const price = m ? parseFloat(String(m[1]).replace(/,/g, '')) : null;\n  const problem = price !== null && price <= Number(cfg.target_price);\n  const detail = price === null ? 'Could not read the price' : 'Price is ' + price + ' (target ' + cfg.target_price + ')';\n  return { json: { url, problem, detail, checked_at: new Date().toISOString() } };\n});"
+      },
+      "id": "bf170827-9a69-5bc6-b331-c445c4c1300f",
+      "name": "Judge the result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "083f019d-6c57-5167-bf08-d24aff5b07a7",
+              "leftValue": "={{ $json.problem }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "562fa116-90cc-52e1-86fa-19a4cdc35426",
+      "name": "Problem found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=Price alert: {{ $json.url }}",
+        "emailType": "text",
+        "message": "={{ $json.detail }}\n{{ $json.url }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "a1a717ed-473c-58c8-be34-71cd1d8aa811",
+      "name": "Email me the alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Price drop tracker with email alert\nReads a price from a product page every few hours and emails you when it drops to your target. Works on pages that show the price in plain HTML.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "e5e963f9-f022-5b65-a9d3-437d02e5d0fe",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Open **Settings** and list the addresses to check (and your email). Set **target_price** and, if the page uses a different format, the **price_regex** (first capture group = the number).\n2. Connect Gmail on **Email me the alert**.\n3. Run it once by hand, look at **Judge the result** to see what it found, then switch to **Active**.\n4. It only emails you when something is wrong, so a quiet inbox means all is well.",
+        "height": 260,
+        "width": 480,
+        "color": 7
+      },
+      "id": "d33e8c4f-6233-54dc-a87f-059251393248",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "List what to check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List what to check": {
+      "main": [
+        [
+          {
+            "node": "Fetch the page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch the page": {
+      "main": [
+        [
+          {
+            "node": "Judge the result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Judge the result": {
+      "main": [
+        [
+          {
+            "node": "Problem found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Problem found?": {
+      "main": [
+        [
+          {
+            "node": "Email me the alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
