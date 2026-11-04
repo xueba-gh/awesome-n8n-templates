@@ -6,7 +6,7 @@ Running checklist for the n8n products launch. Updated at the end of each task.
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Live test with real accounts | In progress |
+| 1 | Live test with real accounts | Done (optional extras: Speed-to-Lead Booked/Replied/duplicate paths, Twilio, WhatsApp) |
 | 2 | Demo videos | Not started |
 | 3 | Upwork profile | Not started |
 | 4 | Fiverr gigs | Not started |
@@ -29,7 +29,7 @@ Running checklist for the n8n products launch. Updated at the end of each task.
 | 01 Speed-to-Lead | [x] (via raw GitHub URL) | [x] Sheets, Gmail (email-only; no Twilio yet) | [x] new-lead path and hourly follow-up #1 (backdated received_at: follow-up email sent, followups_sent=1, last_contact_at updated), 2026-11-04. Booking, replied/STOP and duplicate path not yet tested live | Leads sheet created: 'Speed-to-Lead test leads', tab Leads, 14 headers |
 | 02 AI Support Chatbot | [x] (raw GitHub URL) | [x] Sheets (2 nodes), Gmail, OpenAI (gateway credits) | [x] 2026-11-04, website chat in n8n test panel | FAQ answer from sheet OK; off-sheet question ('Invisalign') -> says unsure and offers a human; callback request -> row in Conversations (name, contact, reason, summary, status=new) and owner email node ran. WhatsApp not tested (needs Meta setup). Test sheet 'Support Chatbot test sheet', tabs Knowledge + Conversations |
 | 03 AI Inbox Assistant | [x] | [x] Gmail, Sheets, OpenAI (gateway credits) | [x] 2026-11-04 | Newsletter path (label AI/Newsletter created, no draft, logged) and sales-lead path (AI/Sales lead label, draft saved in thread, '[Inbox Assistant] New lead' alert, logged). Test sheet 'Inbox Assistant test log', tab 'Inbox log'. Credentials attach only when each node is opened once; first run fails with 'Node does not have any credentials set' until then. |
-| shared/error-alert | [ ] | [ ] | [ ] | |
+| shared/error-alert | [x] | [x] Gmail | [x] 2026-11-04, run with n8n sample error data: alert email sent | Not yet triggered by a real failing workflow (set as Error workflow in client workflows to verify end to end) |
 
 ### Only checked with mocks so far (verify live)
 
