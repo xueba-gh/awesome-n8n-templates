@@ -219,7 +219,7 @@
     {
       "parameters": {
         "content": "## AI ticket triage for any helpdesk or form (priority and category)\nSend any support request to a webhook. AI sets the priority and category, logs it, and emails you only about high-priority tickets. The sender gets an automatic acknowledgement.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -235,7 +235,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Tickets** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail, OpenAI).\n4. Send a POST request with the fields below to the **Webhook** URL (any form tool, Zapier, Make, or your own site can do this).\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

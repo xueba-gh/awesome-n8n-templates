@@ -104,7 +104,7 @@
     {
       "parameters": {
         "content": "## Payment received thank-you email with receipt details\nWhen a payment webhook arrives (Stripe, PayPal, Gumroad, Paddle, Lemon Squeezy) sends a plain thank-you with the details and logs it.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -120,7 +120,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Sales log** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail).\n4. Point your payment provider's webhook at the **Webhook** URL. Map the field names or rename keys to match.\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

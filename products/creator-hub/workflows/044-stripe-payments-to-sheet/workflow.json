@@ -104,7 +104,7 @@
     {
       "parameters": {
         "content": "## Stripe payments to Google Sheet ledger with thank-you email\nLogs every successful Stripe payment in a sheet and optionally emails a thank-you. A simple ledger without exporting CSVs.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -120,7 +120,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Payments** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail).\n4. In Stripe go to Developers > Webhooks, add this **Webhook** URL and send the `payment_intent.succeeded` event. Amounts from Stripe are in cents.\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

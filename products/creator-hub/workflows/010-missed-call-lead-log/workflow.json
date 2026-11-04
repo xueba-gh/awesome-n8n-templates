@@ -104,7 +104,7 @@
     {
       "parameters": {
         "content": "## Missed call log with instant follow-up email task\nLogs every missed call (from any phone system that can send a webhook) and emails you a ready-to-use call-back note.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -120,7 +120,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Missed calls** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail).\n4. Most phone systems (Twilio, CallRail, Aircall, JustCall) can send a webhook on missed calls. Point it at the **Webhook** URL.\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

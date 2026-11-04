@@ -193,11 +193,11 @@ def js_str(s):
 
 
 def setup_notes(w, summary, steps, x=-60, y=-420, extra=""):
-    w.sticky("Note: what this does", "## " + w.name + "\n" + summary, x, y, 420, 260, 4)
+    w.sticky("Note: what this does", "## " + w.name + "\n" + summary, x, y, 420, 300, 4)
     body = "## Setup (about 10 minutes)\n" + "\n".join(f"{i}. {s}" for i, s in enumerate(steps, 1))
     if extra:
         body += "\n\n" + extra
-    w.sticky("Note: setup", body, x + 460, y, 480, 260, 7)
+    w.sticky("Note: setup", body, x + 460, y, 480, 300, 7)
 
 
 def headers_csv(cols):

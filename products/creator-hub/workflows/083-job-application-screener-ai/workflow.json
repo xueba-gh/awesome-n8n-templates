@@ -219,7 +219,7 @@
     {
       "parameters": {
         "content": "## Job application screener (AI summary against your criteria)\nReads application emails, scores the match against your criteria, and logs a short summary. A helper for a human to decide, never an auto-reject.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -235,7 +235,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Applicants** and paste the header row from `sheet-headers.csv`.\n2. Open **Settings**: sheet URL and your email.\n3. Connect Gmail (trigger and any Gmail node), Google Sheets and OpenAI on the nodes with warnings.\n4. The trigger checks unread mail matching `in:inbox -from:me (application OR resume OR CV)` every minute. Change that search in **New email** to match your inbox.\n5. Send yourself a test from another address, check the result, then switch to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

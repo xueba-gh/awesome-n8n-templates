@@ -174,7 +174,7 @@
     {
       "parameters": {
         "content": "## Lead company enrichment with AI (industry and size guess)\nFor each new lead with a company name and website, fills in a likely industry and a short outreach angle. Meant as a quick first pass, always double-check.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -190,7 +190,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **Leads** and these headers in row 1 (see `sheet-headers.csv`).\n2. Fill the input columns (company). Leave industry, outreach_angle empty: the AI fills it.\n3. Open **Settings**: sheet URL and how many rows to process per run.\n4. Connect Google Sheets and OpenAI on the nodes with warnings.\n5. Run once by hand, check the results, then switch to **Active**. It only touches rows where industry is empty.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

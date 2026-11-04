@@ -105,7 +105,7 @@
     {
       "parameters": {
         "content": "## Deployment notifications to Slack and a sheet\nAny CI/CD tool can send a webhook. Every deployment is logged in a sheet and announced in Slack.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -121,7 +121,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Deployments** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Slack).\n4. Add a webhook step to your pipeline (GitHub Actions, GitLab CI, Vercel, Netlify) that POSTs project, environment, status, commit and author.\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

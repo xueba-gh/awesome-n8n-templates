@@ -104,7 +104,7 @@
     {
       "parameters": {
         "content": "## Abandoned cart recovery email\nWhen a checkout is abandoned, emails the customer a friendly reminder with a link back to the cart.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -120,7 +120,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Abandoned carts** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail).\n4. Shopify can send a webhook on checkout creation or abandonment; WooCommerce needs a cart-abandonment plugin that calls a webhook. Point it at the **Webhook** URL.\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

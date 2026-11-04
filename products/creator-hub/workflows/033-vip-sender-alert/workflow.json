@@ -275,7 +275,7 @@
     {
       "parameters": {
         "content": "## VIP sender alert (important people never get buried)\nEmails you a short alert whenever a message arrives from a person or domain on your VIP list, with an AI summary.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -291,7 +291,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **VIP log** and paste the header row from `sheet-headers.csv`.\n2. Open **Settings**: sheet URL and your email.\n3. Connect Gmail (trigger and any Gmail node), Google Sheets and OpenAI on the nodes with warnings.\n4. The trigger checks unread mail matching `in:inbox -from:me` every minute. Change that search in **New email** to match your inbox.\n5. Send yourself a test from another address, check the result, then switch to **Active**. Nothing is ever sent to customers: replies are saved as drafts.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

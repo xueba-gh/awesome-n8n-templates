@@ -104,7 +104,7 @@
     {
       "parameters": {
         "content": "## Refund tracker log with alert for large refunds\nLogs every refund event in a sheet and emails you each time, so refunds never go unnoticed.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -120,7 +120,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Refunds** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail).\n4. Send refund events from Shopify, WooCommerce or Stripe to the **Webhook** URL.\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

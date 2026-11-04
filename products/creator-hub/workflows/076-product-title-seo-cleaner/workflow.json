@@ -174,7 +174,7 @@
     {
       "parameters": {
         "content": "## Marketplace product title improver (Amazon, Etsy, eBay style)\nRewrites weak product titles into clear, keyword-friendly ones without keyword stuffing.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -190,7 +190,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **Listings** and these headers in row 1 (see `sheet-headers.csv`).\n2. Fill the input columns (current_title). Leave better_title empty: the AI fills it.\n3. Open **Settings**: sheet URL and how many rows to process per run.\n4. Connect Google Sheets and OpenAI on the nodes with warnings.\n5. Run once by hand, check the results, then switch to **Active**. It only touches rows where better_title is empty.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

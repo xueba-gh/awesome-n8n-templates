@@ -200,7 +200,7 @@
     {
       "parameters": {
         "content": "## GitHub issue triage with AI labels and summary\nReceives GitHub issue webhooks, has AI suggest a label and priority, logs them, and emails you for bugs marked high priority.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -216,7 +216,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Issues** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail, OpenAI).\n4. In your GitHub repo go to Settings > Webhooks, add this **Webhook** URL, content type application/json, event: Issues.\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

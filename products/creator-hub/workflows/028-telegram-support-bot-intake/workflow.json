@@ -165,7 +165,7 @@
     {
       "parameters": {
         "content": "## Support request intake from Telegram, WhatsApp or any chat tool\nReceives messages from any chat bot that can call a webhook, logs them with AI category and urgency, and acknowledges by email if an address is given.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -181,7 +181,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Chat requests** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail, OpenAI).\n4. Connect your chat bot platform (Telegram bot via n8n, Botpress, ManyChat, WhatsApp provider) to the **Webhook** URL.\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

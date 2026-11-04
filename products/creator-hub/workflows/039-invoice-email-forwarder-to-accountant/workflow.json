@@ -152,7 +152,7 @@
     {
       "parameters": {
         "content": "## Invoice email collector for your accountant\nLogs invoices and receipts found in Gmail into one sheet with vendor, amount and a link, so month-end is a single export.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -168,7 +168,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Invoices** and paste the header row from `sheet-headers.csv`.\n2. Open **Settings**: sheet URL and your email.\n3. Connect Gmail (trigger and any Gmail node), Google Sheets and OpenAI on the nodes with warnings.\n4. The trigger checks unread mail matching `in:inbox has:attachment (invoice OR receipt OR statement)` every minute. Change that search in **New email** to match your inbox.\n5. Send yourself a test from another address, check the result, then switch to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

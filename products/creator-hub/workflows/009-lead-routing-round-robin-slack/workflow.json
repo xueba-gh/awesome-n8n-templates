@@ -105,7 +105,7 @@
     {
       "parameters": {
         "content": "## Lead routing to sales reps by territory, with Slack alert\nLogs each new lead and posts it in Slack so a rep can act in minutes. Add your own routing rule (see notes) to assign by country or keyword.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -121,7 +121,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Routed leads** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Slack).\n4. Send a POST request with the fields below to the **Webhook** URL (any form tool, Zapier, Make, or your own site can do this).\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

@@ -129,7 +129,7 @@
     {
       "parameters": {
         "content": "## Photographer booking enquiry and gallery delivery emails\nEnquiries are logged and acknowledged. When a shoot is done, send a webhook to email the gallery link.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -145,7 +145,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Shoots** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail).\n4. Fill in the built-in form (open the form URL from the **Form** node).\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

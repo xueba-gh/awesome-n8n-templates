@@ -182,7 +182,7 @@
     {
       "parameters": {
         "content": "## Meeting notes to summary and action items (AI)\nSend a transcript or notes to a webhook. AI writes a summary, decisions and action items with owners, saved and emailed.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -198,7 +198,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Meetings** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail, OpenAI).\n4. Fill in the built-in form (open the form URL from the **Form** node).\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

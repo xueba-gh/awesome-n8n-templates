@@ -149,7 +149,7 @@
     {
       "parameters": {
         "content": "## Weekly support themes report (what customers keep asking)\nReads your support log each week and tells you the top recurring questions and what to fix or add to your FAQ.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -165,7 +165,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **Support log** and these headers in row 1 (see `sheet-headers.csv`).\n2. Open **Settings**: sheet URL and the email that should receive the summary.\n3. Connect Google Sheets, Gmail and OpenAI on the nodes with warnings.\n4. Run once by hand to see the email, then switch the workflow to **Active** (it runs on the schedule in the first node).",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

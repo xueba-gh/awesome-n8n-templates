@@ -123,7 +123,7 @@
     {
       "parameters": {
         "content": "## Course student onboarding: welcome email and enrolment log\nWhen someone enrols (form or payment webhook), they get a welcome email with access details and the enrolment is logged.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -139,7 +139,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Enrolments** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail).\n4. Point your checkout or course platform's webhook at the **Webhook** URL (name, email, course).\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

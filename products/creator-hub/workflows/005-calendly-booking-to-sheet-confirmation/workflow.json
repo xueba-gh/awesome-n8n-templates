@@ -123,7 +123,7 @@
     {
       "parameters": {
         "content": "## Calendly booking to Google Sheet with prep email\nWhen someone books a call in Calendly, saves them to a sheet and emails a short prep note so the call starts well.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -139,7 +139,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Bookings** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail).\n4. In Calendly add a webhook subscription (invitee.created) to this workflow's **Webhook** URL. Calendly nests the data; the workflow flattens it, so keys like name, email, start_time and event_type are picked up.\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

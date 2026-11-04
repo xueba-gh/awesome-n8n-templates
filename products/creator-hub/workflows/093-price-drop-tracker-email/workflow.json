@@ -144,7 +144,7 @@
     {
       "parameters": {
         "content": "## Price drop tracker with email alert\nReads a price from a product page every few hours and emails you when it drops to your target. Works on pages that show the price in plain HTML.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -160,7 +160,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Open **Settings** and list the addresses to check (and your email). Set **target_price** and, if the page uses a different format, the **price_regex** (first capture group = the number).\n2. Connect Gmail on **Email me the alert**.\n3. Run it once by hand, look at **Judge the result** to see what it found, then switch to **Active**.\n4. It only emails you when something is wrong, so a quiet inbox means all is well.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

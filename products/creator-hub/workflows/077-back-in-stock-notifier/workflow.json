@@ -145,7 +145,7 @@
     {
       "parameters": {
         "content": "## Back-in-stock notifier for waiting customers\nKeep a waitlist sheet. When you mark a product back in stock, each waiting customer gets an email once.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -161,7 +161,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **Waitlist** and these headers in row 1: see `sheet-headers.csv`.\n2. Open **Settings** and fill in your sheet URL, your email and names.\n3. Connect Google Sheets and Gmail on the nodes with warnings.\n4. Check the rule in **Find rows to act on** (it shows exactly which rows get an email) and the wording in **Send email**.\n5. Run it once by hand with a test row, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

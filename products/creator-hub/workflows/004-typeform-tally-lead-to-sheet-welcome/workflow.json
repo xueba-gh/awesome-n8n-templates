@@ -104,7 +104,7 @@
     {
       "parameters": {
         "content": "## Typeform / Tally / Jotform submission to Google Sheet with welcome email\nWorks with any form tool that can send a webhook. Saves the answers to a sheet and sends a welcome email.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -120,7 +120,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Form leads** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail).\n4. In Typeform, Tally or Jotform add a webhook pointing at this workflow's **Webhook** URL. Answers are matched by field name (name, email, company, interest).\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

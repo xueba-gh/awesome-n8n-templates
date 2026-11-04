@@ -174,7 +174,7 @@
     {
       "parameters": {
         "content": "## FAQ answer writer from rough notes in a sheet\nTurn your rough notes into clear, customer-friendly FAQ answers, one per row.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -190,7 +190,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Use a Google Sheet with a tab named **FAQ** and these headers in row 1 (see `sheet-headers.csv`).\n2. Fill the input columns (question, notes). Leave answer empty: the AI fills it.\n3. Open **Settings**: sheet URL and how many rows to process per run.\n4. Connect Google Sheets and OpenAI on the nodes with warnings.\n5. Run once by hand, check the results, then switch to **Active**. It only touches rows where answer is empty.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

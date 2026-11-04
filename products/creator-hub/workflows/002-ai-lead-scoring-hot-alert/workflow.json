@@ -222,7 +222,7 @@
     {
       "parameters": {
         "content": "## AI lead scoring with hot-lead email alert\nScores every new lead from 1 to 10 with AI, saves it with a one-line summary, and emails you straight away when the score is 8 or higher (change the rule in the **Worth alerting?** node).",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -238,7 +238,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Leads** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets, Gmail, OpenAI).\n4. Fill in the built-in form (open the form URL from the **Form** node).\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },

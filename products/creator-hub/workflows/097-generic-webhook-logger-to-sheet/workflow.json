@@ -85,7 +85,7 @@
     {
       "parameters": {
         "content": "## Webhook logger: save any incoming webhook to Google Sheets\nA tiny, reusable starting point. Point any service at the webhook and its fields land in a sheet, so you can see exactly what it sends.",
-        "height": 260,
+        "height": 300,
         "width": 420,
         "color": 4
       },
@@ -101,7 +101,7 @@
     {
       "parameters": {
         "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet with a tab named **Webhook log** and paste the header row from `sheet-headers.csv` (first row).\n2. Open **Settings** and fill in your sheet URL, email and names.\n3. Connect your accounts on every node with a warning (Google Sheets).\n4. Send a POST with any of the fields listed. Edit the field list in **Clean up details** to match your service.\n5. Click **Execute workflow**, send a test, then switch the workflow to **Active**.",
-        "height": 260,
+        "height": 300,
         "width": 480,
         "color": 7
       },
