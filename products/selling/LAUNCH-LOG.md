@@ -26,16 +26,16 @@ Running checklist for the n8n products launch. Updated at the end of each task.
 
 | Product | Imported | Credentials | Test run | Notes |
 |---|---|---|---|---|
-| 01 Speed-to-Lead | [x] (via raw GitHub URL) | [x] Sheets, Gmail (email-only; no Twilio yet) | [x] new-lead path, 2026-11-04 (follow-ups, booking, STOP not yet tested live) | Leads sheet created: 'Speed-to-Lead test leads', tab Leads, 14 headers |
+| 01 Speed-to-Lead | [x] (via raw GitHub URL) | [x] Sheets, Gmail (email-only; no Twilio yet) | [x] new-lead path and hourly follow-up #1 (backdated received_at: follow-up email sent, followups_sent=1, last_contact_at updated), 2026-11-04. Booking, replied/STOP and duplicate path not yet tested live | Leads sheet created: 'Speed-to-Lead test leads', tab Leads, 14 headers |
 | 02 AI Support Chatbot | [ ] | [ ] | [ ] | |
-| 03 AI Inbox Assistant | [ ] | [ ] | [ ] | |
+| 03 AI Inbox Assistant | [x] | [x] Gmail, Sheets, OpenAI (gateway credits) | [x] 2026-11-04 | Newsletter path (label AI/Newsletter created, no draft, logged) and sales-lead path (AI/Sales lead label, draft saved in thread, '[Inbox Assistant] New lead' alert, logged). Test sheet 'Inbox Assistant test log', tab 'Inbox log'. Credentials attach only when each node is opened once; first run fails with 'Node does not have any credentials set' until then. |
 | shared/error-alert | [ ] | [ ] | [ ] | |
 
 ### Only checked with mocks so far (verify live)
 
 - [x] Real OpenAI structured output in the AI nodes (Speed-to-Lead scoring chain, via n8n gateway credits: score 10, hot, valid JSON). Follow-up chain and the other two products still to check
 - [ ] Chatbot handover tools `save_contact_request` and `notify_owner` (do `$fromAI` values fill in?)
-- [ ] Gmail labels via `={{ [$json.label_id] }}`
+- [x] Gmail labels via `={{ [$json.label_id] }}` (label created and applied on both test emails)
 - [ ] Google Sheets append/update with auto-mapped columns
 
 ### Fixes made to workflow JSONs
