@@ -28,6 +28,7 @@ const reddit = [
 ];
 const forum = [{ topic_list: { topics: [
   { id: 101, slug: 'need-n8n-dev', title: 'Need n8n dev for Shopify sync', created_at: new Date().toISOString(), pinned: false },
+  { id: 103, slug: 'closed-job', title: 'Looking for n8n help', created_at: new Date().toISOString(), pinned: false, closed: true },
   { id: 102, slug: 'guidelines', title: 'Jobs category guidelines', created_at: new Date().toISOString(), pinned: true },
 ] } }];
 
@@ -42,7 +43,7 @@ const picked = run(code.FILTER, {
   'Get new Reddit posts': reddit,
   'Get n8n forum jobs': forum,
 }).map((i) => i.json.post_id).sort();
-assert.deepStrictEqual(picked, ['n8nforum_101', 'reddit_a1', 'reddit_a4', 'reddit_a6'].sort(), 'picked: ' + picked);
+assert.deepStrictEqual(picked, ['n8nforum_101', 'n8nforum_103', 'reddit_a1', 'reddit_a4', 'reddit_a6'].sort(), 'picked: ' + picked);
 
 // empty sheet (alwaysOutputData gives one empty item) and failed sources
 const none = run(code.FILTER, { Settings: [{ config: cfg }], 'Read seen posts': [{}], 'Get new Reddit posts': [{}], 'Get n8n forum jobs': [{}] });

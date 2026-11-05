@@ -79,7 +79,7 @@ try { forum = $('Get n8n forum jobs').all(); } catch (e) { forum = []; }
 for (const { json: page } of forum) {
   const topics = (page && page.topic_list && page.topic_list.topics) || [];
   for (const t of topics) {
-    if (!t || !t.id || t.pinned || t.closed) continue;
+    if (!t || !t.id || t.pinned) continue; // Jobs topics are closed to replies on purpose (you DM the poster), so closed is fine
     posts.push({
       post_id: 'n8nforum_' + t.id,
       source: 'n8n community (Jobs)',
