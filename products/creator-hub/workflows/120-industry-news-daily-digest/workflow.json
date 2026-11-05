@@ -1,0 +1,280 @@
+{
+  "name": "Daily industry news digest (AI summary of your news feeds)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "id": "6c3fd991-1c49-5ae9-bf03-43c0c55f3ac2",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"feeds\": [\n      \"https://example-news-site.com/rss\"\n    ],\n    \"hours_back\": 24,\n    \"keywords\": [],\n    \"max_items\": 20,\n    \"owner_email\": \"you@example.com\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "3041860d-2bfe-58ef-87f4-78367e772a63",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Settings').first().json.config.feeds.map((url) => ({ json: { url } }));"
+      },
+      "id": "e13ff808-2a20-5a6b-ba22-296723dab855",
+      "name": "List feeds",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "id": "e9be5b78-1089-5ef8-b913-053af3e00389",
+      "name": "Read the feed",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst since = Date.now() - Number(cfg.hours_back || 24) * 3600000;\nconst kws = (cfg.keywords || []).map((k) => String(k).toLowerCase()).filter(Boolean);\nconst seen = new Set();\nconst items = [];\nfor (const { json: it } of $input.all()) {\n  if (!it || !it.link || it.error) continue;\n  const t = Date.parse(it.isoDate || it.pubDate || '');\n  if (!isNaN(t) && t < since) continue;\n  if (seen.has(it.link)) continue;\n  const text = String((it.title || '') + ' ' + (it.contentSnippet || it.content || '')).replace(/<[^>]+>/g, ' ');\n  if (kws.length && !kws.some((k) => text.toLowerCase().includes(k))) continue;\n  seen.add(it.link);\n  items.push({ title: String(it.title || '').trim(), link: it.link, published: it.isoDate || it.pubDate || '',\n    source: String(it.creator || it.author || '').trim(), snippet: text.replace(/\\s+/g, ' ').trim().slice(0, 800) });\n}\nconst top = items.slice(0, Number(cfg.max_items) || 20);\nif (!top.length) return [];\nreturn [{ json: { count: top.length,\n  items_text: top.map((i, n) => `${n + 1}. ${i.title}\\n${i.snippet}\\n${i.link}`).join('\\n\\n'),\n  links: top.map((i, n) => `${n + 1}. ${i.title}\\n   ${i.link}`).join('\\n') } }];"
+      },
+      "id": "3d5f1833-3671-58f9-a644-9545e10d09b4",
+      "name": "Keep new items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Summarise today's industry news for a busy small-business owner: the 3-5 most important stories in one or two sentences each, and one line on why it matters. Plain text.\n\nItems ({{ $json.count }}):\n{{ $json.items_text }}",
+        "hasOutputParser": true
+      },
+      "id": "bcbdb1ba-ed9c-5fee-bafc-4e9ef52f748c",
+      "name": "AI: write the digest",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "8be6c2e7-1b13-5a0c-95f2-66e0765bc931",
+      "name": "AI: write the digest model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1200,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"headline\": \"Short subject line\",\n  \"summary\": \"The digest text\"\n}"
+      },
+      "id": "de87e9bb-a97b-5df8-a6e3-092e05bd11a2",
+      "name": "AI: write the digest format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1400,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=Today's news: {{ $json.output.headline }}",
+        "emailType": "text",
+        "message": "={{ $json.output.summary }}\n\nSources:\n{{ $('Keep new items').first().json.links }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "dc67d3f6-78c1-5ed0-ab6b-52770460e762",
+      "name": "Email the digest",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Daily industry news digest (AI summary of your news feeds)\nEvery morning summarises the last 24 hours from your industry news feeds into one short email: top stories and why they matter.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "4e6cd91c-303b-5980-b3c4-149efbfc60fc",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Open **Settings** and list your RSS feed URLs (most blogs have `/feed` or `/rss`; a YouTube channel is `https://www.youtube.com/feeds/videos.xml?channel_id=...`).\n2. Connect Gmail and OpenAI on the nodes with warnings.\n3. Run it once by hand and look at **Keep new items**, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "9dbfe97b-282b-56a8-878d-a533301d3012",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "List feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List feeds": {
+      "main": [
+        [
+          {
+            "node": "Read the feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the feed": {
+      "main": [
+        [
+          {
+            "node": "Keep new items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: write the digest model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: write the digest",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: write the digest format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: write the digest",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep new items": {
+      "main": [
+        [
+          {
+            "node": "AI: write the digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: write the digest": {
+      "main": [
+        [
+          {
+            "node": "Email the digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

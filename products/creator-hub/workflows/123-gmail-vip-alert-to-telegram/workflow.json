@@ -1,0 +1,151 @@
+{
+  "name": "VIP email alert to Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "in:inbox -from:me",
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "62985dba-a612-5f52-9a8f-66956fb1e2d5",
+      "name": "New email",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"telegram_chat_id\": \"123456789\",\n    \"vip_senders\": [\n      \"boss@example.com\",\n      \"@bigclient.com\"\n    ]\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f45da664-c0f7-56d8-895e-8460d6914133",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst vips = (cfg.vip_senders || []).map((v) => String(v).toLowerCase().trim()).filter(Boolean);\nreturn $('New email').all().filter((i) => {\n  const from = String((i.json.from && i.json.from.value && i.json.from.value[0] && i.json.from.value[0].address) || '').toLowerCase();\n  return vips.some((v) => v.startsWith('@') ? from.endsWith(v) : from === v);\n}).map((i) => ({ json: {\n  from: (i.json.from && i.json.from.text) || '', subject: i.json.subject || '(no subject)',\n  snippet: String(i.json.text || i.json.snippet || '').replace(/\\s+/g, ' ').slice(0, 300) } }));"
+      },
+      "id": "b00d5320-768f-5002-8ba4-9abab9f59815",
+      "name": "Is it from a VIP?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Settings').first().json.config.telegram_chat_id }}",
+        "text": "=VIP email from {{ $json.from }}\n{{ $json.subject }}\n\n{{ $json.snippet }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "390257a8-15d7-5428-b5ef-d8ee587d7871",
+      "name": "Telegram me",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## VIP email alert to Telegram\nWhen an email arrives from someone on your VIP list (or a whole company domain), you get a Telegram message with the subject and first lines.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "dbcbe582-ad29-5899-b649-b358e24b74ea",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Create a Telegram bot with **@BotFather** and add its token as a Telegram credential in n8n. Send your bot a message, then get your chat ID (for example from @userinfobot).\n2. Open **Settings**: your Telegram chat ID and the VIP list (full addresses, or `@domain.com` for a whole company).\n3. Connect Gmail and Telegram.\n4. Run it once with test data, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "8d13ab43-40fa-55ab-9e83-b7272b73d9e7",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "New email": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Is it from a VIP?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is it from a VIP?": {
+      "main": [
+        [
+          {
+            "node": "Telegram me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

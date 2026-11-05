@@ -1,0 +1,115 @@
+{
+  "name": "Error alert email for all your workflows",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "999ec3a8-61e0-56e7-a19b-1b2970288931",
+      "name": "When any workflow fails",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"alert_email\": \"you@example.com\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f3c5ebed-dc1e-5865-9c7e-6e2e4c6de157",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.alert_email }}",
+        "subject": "=Workflow failed: {{ $('When any workflow fails').item.json.workflow.name }}",
+        "emailType": "text",
+        "message": "=Workflow: {{ $('When any workflow fails').item.json.workflow.name }}\nFailed node: {{ $('When any workflow fails').item.json.execution.lastNodeExecuted }}\nError: {{ $('When any workflow fails').item.json.execution.error.message }}\nTime: {{ $now.toISO() }}\n\nOpen the failed run: {{ $('When any workflow fails').item.json.execution.url }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "b680481a-9b40-596e-8cd3-e866e84b1469",
+      "name": "Email the error",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Error alert email for all your workflows\nSet it once as the error workflow: whenever a production workflow fails, you get an email with the workflow, the failed node, the error and a link to the run.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "ca20b3a4-db2a-5f6c-ac07-e50dd777087a",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Open **Settings** and set the email for alerts. Connect Gmail.\n2. Save this workflow. You do not need to activate it.\n3. In each workflow you want watched: **Settings > Error workflow** and choose this one.\n4. Test: make a workflow fail on purpose (for example a Code node with `throw new Error('test')`) and run it from a schedule or webhook. Manual runs do not trigger error workflows.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "6717f2e8-71f1-5267-b80b-50dbb50de427",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "When any workflow fails": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Email the error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

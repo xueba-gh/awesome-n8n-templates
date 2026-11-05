@@ -1,0 +1,395 @@
+{
+  "name": "Missed call text-back (Twilio): never lose a caller",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "incoming-call",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1875da67-f35a-5580-a3d7-0b266e24ec3f",
+      "name": "Incoming call",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "725c069d-1cfa-518a-a348-60df39a16a98"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"business_name\": \"Your Business\",\n    \"owner_phone\": \"+15550000000\",\n    \"owner_email\": \"you@example.com\",\n    \"twilio_from_number\": \"+15550000001\",\n    \"ring_seconds\": 20,\n    \"dial_result_url\": \"PASTE_THE_PRODUCTION_URL_OF_THE_'Call_finished'_WEBHOOK\",\n    \"text_back\": \"Hi, sorry we missed your call at [business]! How can we help? Reply here and we'll get back to you shortly.\",\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Missed calls\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "8d80dd5e-67a1-5fa6-bd62-accb20999f7e",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=<Response><Dial timeout=\"{{ $('Settings').first().json.config.ring_seconds }}\" action=\"{{ $('Settings').first().json.config.dial_result_url }}\" method=\"POST\">{{ $('Settings').first().json.config.owner_phone }}</Dial></Response>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/xml"
+              }
+            ]
+          }
+        }
+      },
+      "id": "088fa944-14e1-5337-95b6-8ceaafc25403",
+      "name": "Ring your phone",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "call-finished",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f8095184-c861-599a-8169-8605a9d33284",
+      "name": "Call finished",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "7cdb2709-6aaa-50c8-be8f-99fa0ad725a0"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body || {};\nconst status = String(b.DialCallStatus || '').toLowerCase();\nconst missed = ['no-answer', 'busy', 'failed', 'canceled'].includes(status);\nreturn [{ json: { caller: String(b.From || '').trim(), status, missed, called_at: new Date().toISOString() } }];"
+      },
+      "id": "a4b1202d-5a20-56f2-ae56-cd447ae9c924",
+      "name": "Was it missed?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.missed ? '<Response><Say>Sorry we missed you. We will text you right away.</Say></Response>' : '<Response></Response>' }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/xml"
+              }
+            ]
+          }
+        }
+      },
+      "id": "7413a8fb-bef8-5c32-ab82-e1c5b773899d",
+      "name": "Answer Twilio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "acb0391b-3c3a-5c7f-bcd0-5ba9a6369ce8",
+              "leftValue": "={{ $('Was it missed?').item.json.missed && $('Was it missed?').item.json.caller !== '' }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "39b47f0c-81a5-5b2f-b973-135ad37ed95f",
+      "name": "Missed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"business_name\": \"Your Business\",\n    \"owner_phone\": \"+15550000000\",\n    \"owner_email\": \"you@example.com\",\n    \"twilio_from_number\": \"+15550000001\",\n    \"ring_seconds\": 20,\n    \"dial_result_url\": \"PASTE_THE_PRODUCTION_URL_OF_THE_'Call_finished'_WEBHOOK\",\n    \"text_back\": \"Hi, sorry we missed your call at [business]! How can we help? Reply here and we'll get back to you shortly.\",\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Missed calls\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "888ef244-a176-56ec-a353-b943f483aa3f",
+      "name": "Settings for texts",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "from": "={{ $('Settings for texts').first().json.config.twilio_from_number }}",
+        "to": "={{ $('Was it missed?').item.json.caller }}",
+        "message": "={{ $('Settings for texts').first().json.config.text_back.replace('[business]', $('Settings for texts').first().json.config.business_name) }}",
+        "options": {}
+      },
+      "id": "50acfcb9-dc52-5943-b1de-4c73bb8e94b9",
+      "name": "Text the caller back",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        100
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const c = $('Was it missed?').first().json;\nreturn [{ json: { called_at: c.called_at, caller: c.caller, status: c.status, texted_back: 'yes' } }];"
+      },
+      "id": "629bbd3d-3cf2-5f6f-b3fe-51ffedbfe79a",
+      "name": "Log row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings for texts').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings for texts').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "fddbfb80-a9b1-5408-9fa9-34579a372fba",
+      "name": "Save to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings for texts').first().json.config.owner_email }}",
+        "subject": "=Missed call from {{ $('Was it missed?').first().json.caller }} (texted back)",
+        "emailType": "text",
+        "message": "=Missed call from {{ $('Was it missed?').first().json.caller }} at {{ $('Was it missed?').first().json.called_at }}. They got an automatic text. Call them back when you can.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "a1c2f9f9-0b37-5611-b51b-efb06802f536",
+      "name": "Email me",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Missed call text-back (Twilio): never lose a caller\nCalls to your Twilio number ring your phone. If you don't answer, the caller instantly gets a friendly text, the call is logged and you get an email.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "e078620d-46ba-54fb-8052-5b72f46f6f17",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -460
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Open **Settings** and **Settings for texts** (keep them the same): your phone, Twilio number, email, sheet URL. Make a sheet tab **Missed calls** with the headers in `sheet-headers.csv`.\n2. Activate the workflow. Copy the production URL of **Call finished** into `dial_result_url` in **Settings**.\n3. In Twilio, set your number's *A call comes in* webhook (POST) to the production URL of **Incoming call**.\n4. Connect Twilio, Google Sheets and Gmail. Call your Twilio number and don't answer to test.\n5. US numbers: texting needs A2P 10DLC registration in Twilio first.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "b6cce1d5-e00f-5fee-a995-8fc8d8fa9486",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -460
+      ]
+    }
+  ],
+  "connections": {
+    "Incoming call": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Ring your phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call finished": {
+      "main": [
+        [
+          {
+            "node": "Was it missed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Was it missed?": {
+      "main": [
+        [
+          {
+            "node": "Answer Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Twilio": {
+      "main": [
+        [
+          {
+            "node": "Missed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Missed?": {
+      "main": [
+        [
+          {
+            "node": "Settings for texts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings for texts": {
+      "main": [
+        [
+          {
+            "node": "Text the caller back",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log row": {
+      "main": [
+        [
+          {
+            "node": "Save to sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text the caller back": {
+      "main": [
+        [
+          {
+            "node": "Email me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

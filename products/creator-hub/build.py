@@ -69,6 +69,8 @@ def field_check(sp, cols):
     """every {field} used in templates must exist as a column/field."""
     errs = []
     t = sp["type"]
+    if t == "X":
+        return []
     allowed = set(cols or [])
     texts = []
     if t == "I":

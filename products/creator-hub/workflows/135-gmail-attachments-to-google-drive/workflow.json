@@ -1,0 +1,229 @@
+{
+  "name": "Save Gmail attachments to Google Drive with a log sheet",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "has:attachment -from:me",
+          "readStatus": "unread"
+        },
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "id": "4c2eb3cc-f99f-5794-bb9a-05108737250b",
+      "name": "New email with attachment",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"drive_folder_id\": \"PASTE_FOLDER_ID_FROM_THE_FOLDER_URL\",\n    \"only_from\": [],\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Saved attachments\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "9e92ffc2-7554-559b-9f74-465dc50b2357",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst only = (cfg.only_from || []).map((s) => String(s).toLowerCase());\nconst out = [];\nfor (const item of $('New email with attachment').all()) {\n  const from = String((item.json.from && item.json.from.value && item.json.from.value[0] && item.json.from.value[0].address) || '').toLowerCase();\n  if (only.length && !only.some((o) => o.startsWith('@') ? from.endsWith(o) : from === o)) continue;\n  const date = new Date(item.json.date || Date.now()).toISOString().slice(0, 10);\n  for (const [key, bin] of Object.entries(item.binary || {})) {\n    out.push({ json: { from, subject: item.json.subject || '', file_name: `${date} ${from.split('@')[0]} - ${bin.fileName || key}` },\n      binary: { data: bin } });\n  }\n}\nreturn out;"
+      },
+      "id": "6e894d07-eaee-5de0-b59f-40fc5267fbc9",
+      "name": "One item per attachment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "name": "={{ $json.file_name }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.config.drive_folder_id }}"
+        },
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "aa2b5041-b713-58b5-ae97-4db69978b290",
+      "name": "Upload to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => { const src = $('One item per attachment').all()[i].json;\n  return { json: { saved_at: new Date().toISOString(), from: src.from, subject: src.subject, file_name: src.file_name, drive_link: item.json.webViewLink || '' } }; });"
+      },
+      "id": "85af526a-b085-5016-a3b2-3492326e184a",
+      "name": "Log row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "0cd759b5-df00-5b87-a216-8055e0bfd595",
+      "name": "Save to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Save Gmail attachments to Google Drive with a log sheet\nEvery attachment you receive (optionally only from chosen senders) is saved to a Drive folder with a clear name and logged in a sheet.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "8906299c-724b-5b2f-a218-5e21b8f472d7",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Create a Drive folder and copy the ID from its URL (the part after /folders/) into **Settings**. Optional: `only_from` limits it to certain senders or `@domain.com`.\n2. Make a sheet tab **Saved attachments** with the headers in `sheet-headers.csv` and put its URL in **Settings**.\n3. Connect Gmail, Google Drive and Google Sheets.\n4. Send yourself an email with an attachment, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "f1f3d964-50e3-518e-b185-966caa8c1abb",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "New email with attachment": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "One item per attachment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One item per attachment": {
+      "main": [
+        [
+          {
+            "node": "Upload to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Log row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log row": {
+      "main": [
+        [
+          {
+            "node": "Save to sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

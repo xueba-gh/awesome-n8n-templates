@@ -1,0 +1,200 @@
+{
+  "name": "Airtable table to Google Sheets sync (hourly)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "d6209de1-5c3c-5968-b9ed-5826f34191a1",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"airtable_base_url\": \"https://airtable.com/appXXXXXXXXXXXXXX\",\n    \"airtable_table_url\": \"https://airtable.com/appXXXXXXXXXXXXXX/tblXXXXXXXXXXXXXX\",\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Airtable copy\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "48e0820a-b30e-5d13-ac77-5d925f8c51ec",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.airtable_base_url }}"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.airtable_table_url }}"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "8b041493-0e06-5ed7-bc3f-8c749e75de09",
+      "name": "Get Airtable records",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(({ json: r }) => {\n  const out = { airtable_id: r.id, synced_at: new Date().toISOString() };\n  const fields = r.fields || r;\n  for (const [k, v] of Object.entries(fields)) {\n    if (k === 'id' || k === 'createdTime') continue;\n    out[k] = Array.isArray(v) ? v.map((x) => (x && typeof x === 'object' ? (x.name || x.url || JSON.stringify(x)) : x)).join(', ')\n      : v && typeof v === 'object' ? JSON.stringify(v) : v;\n  }\n  return { json: out };\n});"
+      },
+      "id": "91ee75fc-ccbb-5fbb-af20-0a1b2e163315",
+      "name": "Flatten for the sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "airtable_id"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "e384c201-4da3-53b8-baf3-0b15c226230d",
+      "name": "Add or update sheet rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Airtable table to Google Sheets sync (hourly)\nCopies every record of an Airtable table into a Google Sheet each hour, adding new records and updating changed ones.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "a0276747-d32a-58f3-a9bb-4a153d2515a7",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Make a Google Sheet tab **Airtable copy** with headers `airtable_id`, `synced_at` and then your Airtable field names, spelt exactly the same.\n2. Open **Settings**: Airtable base and table URLs, sheet URL.\n3. Add an Airtable personal access token credential (data.records:read) and connect Google Sheets.\n4. Run once: every record appears in the sheet, then each hour new records are added and changed ones updated (matched on airtable_id).",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "d751b14e-18ac-50cd-b2a6-c8b8d18c9a2f",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Get Airtable records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Airtable records": {
+      "main": [
+        [
+          {
+            "node": "Flatten for the sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten for the sheet": {
+      "main": [
+        [
+          {
+            "node": "Add or update sheet rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

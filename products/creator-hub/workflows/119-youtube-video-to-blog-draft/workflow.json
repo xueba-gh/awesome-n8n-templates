@@ -1,0 +1,317 @@
+{
+  "name": "New YouTube video to blog post draft and social posts",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "23d01275-60a7-5fd9-8866-62a396873c45",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"feeds\": [\n      \"https://www.youtube.com/feeds/videos.xml?channel_id=YOUR_CHANNEL_ID\"\n    ],\n    \"hours_back\": 6,\n    \"keywords\": [],\n    \"max_items\": 20,\n    \"owner_email\": \"you@example.com\",\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Video content\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "4a6a078f-93d9-5f54-a38e-eddcadd9c185",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Settings').first().json.config.feeds.map((url) => ({ json: { url } }));"
+      },
+      "id": "f945dcb6-1e40-5c4f-9e10-e558ea79f1a6",
+      "name": "List feeds",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "id": "8e13a743-33d6-51c6-95ab-3fb87fa10862",
+      "name": "Read the feed",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst since = Date.now() - Number(cfg.hours_back || 24) * 3600000;\nconst kws = (cfg.keywords || []).map((k) => String(k).toLowerCase()).filter(Boolean);\nconst seen = new Set();\nconst items = [];\nfor (const { json: it } of $input.all()) {\n  if (!it || !it.link || it.error) continue;\n  const t = Date.parse(it.isoDate || it.pubDate || '');\n  if (!isNaN(t) && t < since) continue;\n  if (seen.has(it.link)) continue;\n  const text = String((it.title || '') + ' ' + (it.contentSnippet || it.content || '')).replace(/<[^>]+>/g, ' ');\n  if (kws.length && !kws.some((k) => text.toLowerCase().includes(k))) continue;\n  seen.add(it.link);\n  items.push({ title: String(it.title || '').trim(), link: it.link, published: it.isoDate || it.pubDate || '',\n    source: String(it.creator || it.author || '').trim(), snippet: text.replace(/\\s+/g, ' ').trim().slice(0, 800) });\n}\nconst top = items.slice(0, Number(cfg.max_items) || 20);\nreturn top.map((i) => ({ json: i }));"
+      },
+      "id": "981d1ca8-5278-5b04-8b18-494153c79a56",
+      "name": "Keep new items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Turn this YouTube video into written content. Use only what the title and description say; do not invent facts. Return blog_title, blog_draft (300-500 words, plain text), linkedin_post (under 120 words) and tweet (under 260 characters).\n\nTitle: {{ $json.title }}\nLink: {{ $json.link }}\nText: {{ $json.snippet }}",
+        "hasOutputParser": true
+      },
+      "id": "c2f288c1-c3ba-5a59-ba46-9293d96eddc2",
+      "name": "AI: process the item",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "7030a549-4e7e-57e2-ba34-bbfeb00ea76d",
+      "name": "AI: process the item model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1200,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"blog_title\": \"...\",\n  \"blog_draft\": \"...\",\n  \"linkedin_post\": \"...\",\n  \"tweet\": \"...\"\n}"
+      },
+      "id": "ab9451b8-5831-5fd0-b47f-4e96f61f44c4",
+      "name": "AI: process the item format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1400,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item, i) => ({ json: { ...$('Keep new items').all()[i].json, ...(item.json.output || {}), saved_at: new Date().toISOString() } }));"
+      },
+      "id": "3a87fc88-da39-5d4b-b54f-79c6b9305df5",
+      "name": "Build the row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "f13d84f6-1a3c-577a-a79d-72e066ae0b96",
+      "name": "Save to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1680,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## New YouTube video to blog post draft and social posts\nWhen a YouTube channel publishes a video, AI writes a blog post draft, a LinkedIn post and a tweet from the title and description, saved to a sheet.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "a103ad1f-a29a-56c1-a2cc-69d9b8375412",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Open **Settings** and list your RSS feed URLs (most blogs have `/feed` or `/rss`; a YouTube channel is `https://www.youtube.com/feeds/videos.xml?channel_id=...`).\n2. Use a Google Sheet with a tab named **Video content** and the headers in `sheet-headers.csv`, then connect Google Sheets and OpenAI.\n3. Run it once by hand and look at **Keep new items**, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "c74286ea-e263-5382-bd6c-ac47d01360f7",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "List feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List feeds": {
+      "main": [
+        [
+          {
+            "node": "Read the feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the feed": {
+      "main": [
+        [
+          {
+            "node": "Keep new items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: process the item model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: process the item",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: process the item format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: process the item",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep new items": {
+      "main": [
+        [
+          {
+            "node": "AI: process the item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: process the item": {
+      "main": [
+        [
+          {
+            "node": "Build the row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build the row": {
+      "main": [
+        [
+          {
+            "node": "Save to sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

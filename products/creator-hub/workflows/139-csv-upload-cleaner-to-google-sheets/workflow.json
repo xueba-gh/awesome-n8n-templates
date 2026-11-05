@@ -1,0 +1,197 @@
+{
+  "name": "CSV upload cleaner to Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Upload a CSV",
+        "formDescription": "The file is cleaned and added to the Google Sheet.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "CSV file",
+              "fieldType": "file",
+              "acceptFileTypes": ".csv",
+              "multipleFiles": false,
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Upload"
+        }
+      },
+      "id": "7723d5c0-9a8b-5678-9273-072f09e3309e",
+      "name": "CSV upload form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "b7d2ca1e-a8f3-5606-83cb-6c41cd195ba3"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Imported\",\n    \"required_columns\": [\n      \"email\"\n    ]\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "54c75f83-2467-5892-9e67-56e6c7e37a5f",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "binaryPropertyName": "CSV_file",
+        "options": {}
+      },
+      "id": "7bc9fe68-49ed-5b62-ba20-820116503a40",
+      "name": "Read the CSV",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst key = (k) => String(k).trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');\nconst title = (s) => s.replace(/\\s+/g, ' ').trim().toLowerCase().replace(/(^|[\\s'-])\\p{L}/gu, (m) => m.toUpperCase());\nconst seen = new Set();\nconst out = [];\nfor (const { json: raw } of $input.all()) {\n  const r = {};\n  for (const [k, v] of Object.entries(raw)) r[key(k)] = String(v ?? '').replace(/\\s+/g, ' ').trim();\n  if (r.email !== undefined) { r.email = r.email.toLowerCase(); if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(r.email)) r.email = ''; }\n  for (const c of ['name', 'first_name', 'last_name', 'city']) if (r[c]) r[c] = title(r[c]);\n  if (r.phone !== undefined) r.phone = r.phone.replace(/[^\\d+]/g, '');\n  if ((cfg.required_columns || []).some((c) => !r[c])) continue;\n  const id = JSON.stringify(r);\n  if (seen.has(id)) continue;\n  seen.add(id);\n  out.push({ json: r });\n}\nreturn out;"
+      },
+      "id": "4b3388cd-75c8-5d15-9627-92e3450e0c83",
+      "name": "Clean the rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "1c60468d-def7-5236-9399-eabe3a92741d",
+      "name": "Add to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## CSV upload cleaner to Google Sheets\nUpload a CSV through a form: headers are normalised, emails checked, names tidied, duplicates and incomplete rows dropped, and the rest appended to your sheet.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "905d6584-250e-518e-83ff-a15e428b3097",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Make a sheet tab **Imported** whose headers match your CSV columns in lower_snake_case (for example `First Name` becomes `first_name`).\n2. Open **Settings**: sheet URL and the columns a row must have to be kept.\n3. Connect Google Sheets. Open the form URL from **CSV upload form** and upload a test file.\n4. Cleans: trims spaces, lower-cases emails and drops invalid ones, title-cases names, strips phone formatting, removes exact duplicates and rows missing required columns.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "b1b90fb6-8793-5083-b91a-9d9378dc8528",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "CSV upload form": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read the CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the CSV": {
+      "main": [
+        [
+          {
+            "node": "Clean the rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean the rows": {
+      "main": [
+        [
+          {
+            "node": "Add to sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

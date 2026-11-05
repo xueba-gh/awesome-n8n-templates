@@ -1,0 +1,183 @@
+{
+  "name": "Daily job list to each cleaner or field worker on Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "id": "16ffa409-05c4-5b96-a29f-b4367334c732",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"telegram_chat_id\": \"123456789\",\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Jobs\",\n    \"business_name\": \"Your Business\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "1c88f17a-73a5-590c-bbb7-0a5aadda836e",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "options": {}
+      },
+      "id": "05624006-3770-51d2-a291-ffbaf72f3224",
+      "name": "Read jobs",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date().toISOString().slice(0, 10);\nconst by = {};\nfor (const { json: r } of $input.all()) {\n  if (String(r.date || '').slice(0, 10) !== today || !r.worker_chat_id) continue;\n  (by[r.worker_chat_id] = by[r.worker_chat_id] || []).push(r);\n}\nreturn Object.entries(by).map(([chat, jobs]) => ({ json: { chat_id: chat, worker: jobs[0].worker || '',\n  text: `Good morning ${jobs[0].worker || ''}! Your jobs today:\\n\\n` + jobs.sort((a, b) => String(a.time).localeCompare(String(b.time)))\n    .map((j, i) => `${i + 1}. ${j.time || ''} ${j.client || ''}\\n   ${j.address || ''}\\n   ${j.notes || ''}`.trimEnd()).join('\\n\\n') } }));"
+      },
+      "id": "31ff9535-47e4-58bf-aa28-f4de95e6ee34",
+      "name": "Group today's jobs by worker",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "f63c26b9-a3fa-5d95-9aa2-733af6140160",
+      "name": "Send each worker their list",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Daily job list to each cleaner or field worker on Telegram\nEvery morning sends each worker their jobs for the day (time, client, address, notes) on Telegram, from one schedule sheet.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "e939b025-950e-5003-a8a9-cc2e9602eaaa",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Create a Telegram bot with **@BotFather** and add its token as a Telegram credential in n8n. Send your bot a message, then get your chat ID (for example from @userinfobot).\n2. Make a sheet tab **Jobs** with the headers in `sheet-headers.csv`. Each worker messages your bot once; put their chat ID in `worker_chat_id`.\n3. Open **Settings**: sheet URL. Connect Google Sheets and Telegram.\n4. Run it once with test data, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "c833d4c5-e826-5434-b6e3-536295ac3aaf",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read jobs": {
+      "main": [
+        [
+          {
+            "node": "Group today's jobs by worker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Group today's jobs by worker": {
+      "main": [
+        [
+          {
+            "node": "Send each worker their list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

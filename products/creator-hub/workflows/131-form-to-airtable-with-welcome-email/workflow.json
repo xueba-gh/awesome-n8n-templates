@@ -1,0 +1,236 @@
+{
+  "name": "Form submissions to Airtable with welcome email and owner alert",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Get in touch",
+        "formDescription": "Fill in the form and we'll be in touch.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "requiredField": true,
+              "fieldType": "email"
+            },
+            {
+              "fieldLabel": "Phone",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Message",
+              "requiredField": false,
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Send"
+        }
+      },
+      "id": "b1301ca3-1a44-57df-9723-8bf3c8242413",
+      "name": "Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "fc7a43c4-b59c-501d-a7f0-cdf348890c18"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\",\n    \"owner_email\": \"you@example.com\",\n    \"airtable_base_url\": \"https://airtable.com/appXXXXXXXXXXXXXX\",\n    \"airtable_table_url\": \"https://airtable.com/appXXXXXXXXXXXXXX/tblXXXXXXXXXXXXXX\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "786a84b7-914f-50bd-a75c-1b922cf5d456",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = (k) => String(k).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');\nfunction flatten(o, into = {}) {\n  for (const [k, v] of Object.entries(o || {})) {\n    if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, into);\n    else if (!(key(k) in into)) into[key(k)] = v;\n  }\n  return into;\n}\nconst FIELDS = [\"name\", \"email\", \"phone\", \"message\"];\nreturn $input.all().map((item) => {\n  const { config, headers, params, query, webhookUrl, executionMode, submittedAt, formMode, ...rest } = item.json;\n  const d = flatten(rest.body || rest);\n  const out = { received_at: new Date().toISOString() };\n  for (const f of FIELDS) out[f] = d[f] === undefined || d[f] === null ? '' : String(d[f]).trim();\n  if (out.email !== undefined) out.email = out.email.toLowerCase();\n  return { json: out };\n});"
+      },
+      "id": "22352b71-2b65-5d31-b58f-4339a75c63fe",
+      "name": "Clean up details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.airtable_base_url }}"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.airtable_table_url }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "811e0c85-b777-56d7-8461-6659200fc397",
+      "name": "Add to Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Clean up details').item.json.email }}",
+        "subject": "=Thanks, {{ $('Clean up details').item.json.name }}!",
+        "emailType": "text",
+        "message": "=Hi {{ $('Clean up details').item.json.name }},\n\nThanks for reaching out. We'll reply shortly.\n\n{{ $('Settings').first().json.config.sender_name }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "0cc95ebb-9413-537a-a9eb-d98bd1b93e37",
+      "name": "Welcome email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=New form entry: {{ $('Clean up details').item.json.name }}",
+        "emailType": "text",
+        "message": "={{ $('Clean up details').item.json.name }} | {{ $('Clean up details').item.json.email }} | {{ $('Clean up details').item.json.phone }}\n\n{{ $('Clean up details').item.json.message }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "46e78a81-48be-5f48-b7df-08fcf79e6dc5",
+      "name": "Tell the owner",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Form submissions to Airtable with welcome email and owner alert\nA hosted form saves every submission as an Airtable record, emails the person a welcome message and alerts you.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "b002839b-9020-58e5-af03-6d69e822f394",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. In Airtable, make a table with fields named exactly: received_at, name, email, phone, message. Create a personal access token (data.records:write, schema.bases:read) and add it as an Airtable credential.\n2. Open **Settings**: business name, your name and email, Airtable base and table URLs.\n3. Connect Gmail on the two email nodes. Share the form URL from the **Form** node.\n4. Submit a test entry, check the record, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "14ed2a2e-4a24-513a-982d-e205e03e0974",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Form": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Clean up details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up details": {
+      "main": [
+        [
+          {
+            "node": "Add to Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add to Airtable": {
+      "main": [
+        [
+          {
+            "node": "Welcome email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tell the owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

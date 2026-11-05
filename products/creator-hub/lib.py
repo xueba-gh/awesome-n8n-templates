@@ -143,7 +143,7 @@ def n_sheet(w, name, op, x, y, match=None, tab_key="sheet_tab"):
     doc, sheet = sheet_ref()
     sheet["value"] = "={{ $('Settings').first().json.config.%s }}" % tab_key
     p = {"operation": op, "documentId": doc, "sheetName": sheet}
-    if op in ("append", "update"):
+    if op in ("append", "update", "appendOrUpdate"):
         p["columns"] = {"mappingMode": "autoMapInputData", "value": {}, "matchingColumns": match or [], "schema": []}
         p["options"] = {"cellFormat": "RAW", "handlingExtraData": "ignoreIt"}
     else:

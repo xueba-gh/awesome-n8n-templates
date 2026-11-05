@@ -1,0 +1,252 @@
+{
+  "name": "Appointment reminder text 24 hours before (Twilio)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "c7b67ef4-e999-5e78-8522-f7dd02eb4118",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"business_name\": \"Your Business\",\n    \"twilio_from_number\": \"+15550000001\",\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Appointments\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0850d5ca-7908-5ab1-bbfa-f440112f9edb",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "options": {}
+      },
+      "id": "1dbc1e01-1f67-5b9c-a20c-6f4c376947aa",
+      "name": "Read rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const daysSince = (v) => { const t = Date.parse(v); return isNaN(t) ? null : (Date.now() - t) / 86400000; };\nconst daysUntil = (v) => { const t = Date.parse(v); return isNaN(t) ? null : (t - Date.now()) / 86400000; };\nconst has = (v) => v !== undefined && v !== null && String(v).trim() !== '';\nconst cfg = $('Settings').first().json.config;\nreturn $input.all().filter((item) => {\n  const r = item.json;\n  return (!has(r.reminder_sent) && has(r.phone) && daysUntil(r.appointment_at) !== null && daysUntil(r.appointment_at) > 0 && daysUntil(r.appointment_at) <= 1);\n}).slice(0, 50);"
+      },
+      "id": "2d399e7e-c1e6-540f-a248-e3ed68a370dc",
+      "name": "Find rows to text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "from": "={{ $('Settings').first().json.config.twilio_from_number }}",
+        "to": "={{ $json.phone }}",
+        "message": "=Hi {{ $json.name }}, a reminder of your {{ $json.service }} with {{ $('Settings').first().json.config.business_name }} on {{ $json.appointment_at }}. Reply C to confirm or call us to change. Reply STOP to opt out.",
+        "options": {}
+      },
+      "id": "8c6ec31a-8a80-5b73-ba73-04373455c6b8",
+      "name": "Send the text",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        960,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const stamp = new Date().toISOString();\nreturn $('Find rows to text').all().map((item) => ({ json: { row_number: item.json.row_number, \"reminder_sent\": stamp } }));"
+      },
+      "id": "afc931ae-1fbd-5c0f-81e0-deefb7bad00d",
+      "name": "Mark rows as done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "1b4545fa-1718-5697-a7f3-102d190fc3f5",
+      "name": "Update rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Appointment reminder text 24 hours before (Twilio)\nTexts each client a reminder about 24 hours before their appointment, once, from your appointments sheet. Cuts no-shows.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "04609b29-fb5b-53d6-bcea-efa1fda22336",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Make a sheet tab **Appointments** with the headers in `sheet-headers.csv`. Phone numbers in international format (+15551234567).\n2. Open **Settings**: your business name, Twilio number, sheet URL.\n3. Connect Twilio and Google Sheets. US numbers need A2P 10DLC registration in Twilio before texting.\n4. Only text people who agreed to receive texts, and honour STOP replies. Run once with your own number, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "e132f4ef-2f66-5289-8963-4d1021d669fd",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read rows": {
+      "main": [
+        [
+          {
+            "node": "Find rows to text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find rows to text": {
+      "main": [
+        [
+          {
+            "node": "Send the text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send the text": {
+      "main": [
+        [
+          {
+            "node": "Mark rows as done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark rows as done": {
+      "main": [
+        [
+          {
+            "node": "Update rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

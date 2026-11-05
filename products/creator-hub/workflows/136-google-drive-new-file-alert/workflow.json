@@ -1,0 +1,131 @@
+{
+  "name": "New file in a Google Drive folder: email alert to the team",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "mode": "url",
+          "value": "https://drive.google.com/drive/folders/PASTE_FOLDER_ID"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "3fd7f57b-7395-5b29-b7c8-0557ab82bbea",
+      "name": "New file in folder",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"notify_emails\": \"you@example.com, teammate@example.com\",\n    \"folder_name\": \"Client uploads\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "1fa3bda8-cdb7-540e-b3c5-b1f4c9260815",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.notify_emails }}",
+        "subject": "=New file in {{ $('Settings').first().json.config.folder_name }}: {{ $('New file in folder').item.json.name }}",
+        "emailType": "text",
+        "message": "=A new file was added to {{ $('Settings').first().json.config.folder_name }}.\n\nFile: {{ $('New file in folder').item.json.name }}\nOpen: {{ $('New file in folder').item.json.webViewLink }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "630c2bf5-68bc-5013-84a1-a466bc0b8148",
+      "name": "Email the team",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## New file in a Google Drive folder: email alert to the team\nWhen a client or colleague drops a file in a shared Drive folder, your team gets an email with the file name and link.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "295f8b37-68af-584a-9866-329e06b8663d",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Open **New file in folder** and paste the folder URL (or pick it from the list).\n2. Open **Settings**: who gets the email and a friendly folder name.\n3. Connect Google Drive and Gmail.\n4. Drop a test file in the folder, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "631b050e-ad27-5817-9368-9026a33643e5",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "New file in folder": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Email the team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

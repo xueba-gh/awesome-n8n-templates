@@ -1,0 +1,188 @@
+{
+  "name": "Duplicate finder for a Google Sheet (weekly report)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "id": "a667a153-2826-5e50-b9c4-e2ff04ac3793",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Contacts\",\n    \"match_on\": [\n      \"email\"\n    ],\n    \"owner_email\": \"you@example.com\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f22d839c-f0ca-5b88-81d7-67add7b8ca78",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "options": {}
+      },
+      "id": "6c121683-c08b-5387-851c-dd12bfc18790",
+      "name": "Read rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst norm = (v) => String(v ?? '').toLowerCase().replace(/\\s+/g, ' ').trim().replace(/^\\+?0+/, '');\nconst groups = {};\nfor (const { json: r } of $input.all()) {\n  const key = (cfg.match_on || ['email']).map((c) => norm(r[c])).join('|');\n  if (!key.replace(/\\|/g, '')) continue;\n  (groups[key] = groups[key] || []).push(r.row_number);\n}\nconst dups = Object.entries(groups).filter(([, rows]) => rows.length > 1);\nif (!dups.length) return [];\nreturn [{ json: { count: dups.length, list: dups.map(([k, rows]) => `${k}  ->  rows ${rows.join(', ')}`).join('\\n') } }];"
+      },
+      "id": "c9b76829-70da-5f98-8f27-9d3f0541dc0e",
+      "name": "Find duplicates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "={{ $json.count }} duplicate groups in {{ $('Settings').first().json.config.sheet_tab }}",
+        "emailType": "text",
+        "message": "=These rows look like duplicates (matched on {{ $('Settings').first().json.config.match_on.join(' + ') }}):\n\n{{ $json.list }}\n\nNothing was deleted. Merge or remove them by hand.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "42e1c68f-9491-54cf-8e89-76840c4523f8",
+      "name": "Email the list",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Duplicate finder for a Google Sheet (weekly report)\nWeekly check of a contacts or leads sheet for duplicate rows (by email, or any columns you choose) and an email listing them. Never deletes anything.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "0153c325-1437-5056-9259-8de0c38f6fe4",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Open **Settings**: sheet URL, tab name, the column(s) to match on (for example `email`, or `name` + `phone`), your email.\n2. Connect Google Sheets and Gmail.\n3. Run once by hand. It only reports and never deletes rows.\n4. Switch to **Active** for a weekly check.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "c707653d-859f-5100-bfea-bcf129a3b6f2",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read rows": {
+      "main": [
+        [
+          {
+            "node": "Find duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find duplicates": {
+      "main": [
+        [
+          {
+            "node": "Email the list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

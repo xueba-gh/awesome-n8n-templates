@@ -1,0 +1,203 @@
+{
+  "name": "Calendly booking to HubSpot contact with prep email",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "calendly-to-hubspot",
+        "responseMode": "onReceived",
+        "options": {
+          "responseData": "{\"ok\":true}"
+        }
+      },
+      "id": "3815c9e5-4410-5cb8-97e6-3e7764e5a6ad",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "8b41ae18-a5b8-5d03-a64b-60ece9b077a0"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"business_name\": \"Your Business\",\n    \"sender_name\": \"Your Name\",\n    \"owner_email\": \"you@example.com\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "5e7264b8-6063-55a0-b5b8-354e2f72abc3",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = (k) => String(k).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');\nfunction flatten(o, into = {}) {\n  for (const [k, v] of Object.entries(o || {})) {\n    if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, into);\n    else if (!(key(k) in into)) into[key(k)] = v;\n  }\n  return into;\n}\nconst FIELDS = [\"name\", \"email\", \"event_type\", \"start_time\"];\nreturn $input.all().map((item) => {\n  const { config, headers, params, query, webhookUrl, executionMode, submittedAt, formMode, ...rest } = item.json;\n  const d = flatten(rest.body || rest);\n  const out = { received_at: new Date().toISOString() };\n  for (const f of FIELDS) out[f] = d[f] === undefined || d[f] === null ? '' : String(d[f]).trim();\n  if (out.email !== undefined) out.email = out.email.toLowerCase();\n  return { json: out };\n});"
+      },
+      "id": "e58cc24c-b266-59b8-bc61-f59a62cc44c3",
+      "name": "Clean up details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "contact",
+        "operation": "upsert",
+        "email": "={{ $json.email }}",
+        "additionalFields": {
+          "firstName": "={{ $json.name.split(' ')[0] }}",
+          "lastName": "={{ $json.name.split(' ').slice(1).join(' ') }}"
+        },
+        "options": {}
+      },
+      "id": "0b20fc27-d27a-5713-bd75-c0a44566da6a",
+      "name": "Create or update HubSpot contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Clean up details').item.json.email }}",
+        "subject": "=See you soon, {{ $('Clean up details').item.json.name }}",
+        "emailType": "text",
+        "message": "=Hi {{ $('Clean up details').item.json.name }},\n\nThanks for booking ({{ $('Clean up details').item.json.event_type }}, {{ $('Clean up details').item.json.start_time }}). To make the most of it, reply with anything you'd like to cover.\n\n{{ $('Settings').first().json.config.sender_name }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "4f8d66cc-5409-5fd2-814c-af85a8712b32",
+      "name": "Welcome email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=New booking: {{ $('Clean up details').item.json.name }}, {{ $('Clean up details').item.json.start_time }}",
+        "emailType": "text",
+        "message": "={{ $('Clean up details').item.json.name }} ({{ $('Clean up details').item.json.email }}) booked {{ $('Clean up details').item.json.event_type }} for {{ $('Clean up details').item.json.start_time }}. Contact is in HubSpot.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "c5364683-d469-51e5-99a2-26ea1cb87081",
+      "name": "Tell the owner",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Calendly booking to HubSpot contact with prep email\nWhen someone books on Calendly (or Cal.com), they are added to HubSpot, get a short prep email, and you get the booking details.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "d93bb3d4-9e33-544b-9417-46e5cb20e4af",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Create a HubSpot **private app** (Settings > Integrations > Private apps) with contacts read/write scope, and paste its token into a HubSpot App Token credential in n8n.\n2. Open **Settings**: business name, your name and email.\n3. Connect Gmail on the two email nodes. Send your form's POST to the **Webhook** URL.\n4. Submit a test entry, check the record, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "7de825c0-b94a-5507-8cad-0743d957f88a",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Clean up details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up details": {
+      "main": [
+        [
+          {
+            "node": "Create or update HubSpot contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or update HubSpot contact": {
+      "main": [
+        [
+          {
+            "node": "Welcome email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tell the owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

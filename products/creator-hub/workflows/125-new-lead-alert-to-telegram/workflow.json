@@ -1,0 +1,183 @@
+{
+  "name": "New website lead to Google Sheet with instant Telegram alert",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-lead-telegram",
+        "responseMode": "onReceived",
+        "options": {
+          "responseData": "{\"ok\":true}"
+        }
+      },
+      "id": "5bb36027-1c1c-59ed-892d-5529a5735f92",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "e8a32264-5f0e-5d51-b351-b6e3b6b515c0"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"telegram_chat_id\": \"123456789\",\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Leads\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "adc01278-8a88-5a13-9ae8-c0850acdaf3a",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = (k) => String(k).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');\nfunction flatten(o, into = {}) {\n  for (const [k, v] of Object.entries(o || {})) {\n    if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, into);\n    else if (!(key(k) in into)) into[key(k)] = v;\n  }\n  return into;\n}\nconst FIELDS = [\"name\", \"email\", \"phone\", \"message\"];\nreturn $input.all().map((item) => {\n  const { config, headers, params, query, webhookUrl, executionMode, submittedAt, formMode, ...rest } = item.json;\n  const d = flatten(rest.body || rest);\n  const out = { received_at: new Date().toISOString() };\n  for (const f of FIELDS) out[f] = d[f] === undefined || d[f] === null ? '' : String(d[f]).trim();\n  if (out.email !== undefined) out.email = out.email.toLowerCase();\n  return { json: out };\n});"
+      },
+      "id": "43ba9507-1e8b-53be-80c8-5fe51469608b",
+      "name": "Clean up details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "92ba365e-a557-5e61-80d0-9a1792caed83",
+      "name": "Save to sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        720,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Settings').first().json.config.telegram_chat_id }}",
+        "text": "=New lead: {{ $('Clean up details').item.json.name }}\n{{ $('Clean up details').item.json.phone }} {{ $('Clean up details').item.json.email }}\n\n{{ $('Clean up details').item.json.message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "79d30c77-c241-5b2d-bf12-16e340a9b835",
+      "name": "Telegram me",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## New website lead to Google Sheet with instant Telegram alert\nEvery form submission is saved to a sheet and pinged to your Telegram straight away, so you can call while the lead is hot.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "20cfd322-4399-55f1-9656-9008486c2b7c",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Create a Telegram bot with **@BotFather** and add its token as a Telegram credential in n8n. Send your bot a message, then get your chat ID (for example from @userinfobot).\n2. Open **Settings**: your Telegram chat ID, sheet URL. Send the form's POST to the **Webhook** URL.\n3. Make a sheet tab **Leads** with the headers in `sheet-headers.csv`, then connect Google Sheets and Telegram.\n4. Run it once with test data, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "8a0fe19c-3b7e-5976-9a79-4057760b08d4",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Clean up details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up details": {
+      "main": [
+        [
+          {
+            "node": "Save to sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

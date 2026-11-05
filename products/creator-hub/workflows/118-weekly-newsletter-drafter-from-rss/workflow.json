@@ -1,0 +1,283 @@
+{
+  "name": "Weekly newsletter drafter from your favourite RSS feeds",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                4
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "057d53c7-f126-574a-83b4-946addb9a366",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"feeds\": [\n      \"https://example.com/feed\"\n    ],\n    \"hours_back\": 168,\n    \"keywords\": [],\n    \"max_items\": 10,\n    \"owner_email\": \"you@example.com\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "021d3baa-aa16-5613-8b91-641331adc980",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Settings').first().json.config.feeds.map((url) => ({ json: { url } }));"
+      },
+      "id": "6885f0b5-4d78-5559-ac6b-9992dd8ab39c",
+      "name": "List feeds",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "id": "32b99b23-e92e-5471-a3be-5198f9c6882b",
+      "name": "Read the feed",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst since = Date.now() - Number(cfg.hours_back || 24) * 3600000;\nconst kws = (cfg.keywords || []).map((k) => String(k).toLowerCase()).filter(Boolean);\nconst seen = new Set();\nconst items = [];\nfor (const { json: it } of $input.all()) {\n  if (!it || !it.link || it.error) continue;\n  const t = Date.parse(it.isoDate || it.pubDate || '');\n  if (!isNaN(t) && t < since) continue;\n  if (seen.has(it.link)) continue;\n  const text = String((it.title || '') + ' ' + (it.contentSnippet || it.content || '')).replace(/<[^>]+>/g, ' ');\n  if (kws.length && !kws.some((k) => text.toLowerCase().includes(k))) continue;\n  seen.add(it.link);\n  items.push({ title: String(it.title || '').trim(), link: it.link, published: it.isoDate || it.pubDate || '',\n    source: String(it.creator || it.author || '').trim(), snippet: text.replace(/\\s+/g, ' ').trim().slice(0, 800) });\n}\nconst top = items.slice(0, Number(cfg.max_items) || 20);\nif (!top.length) return [];\nreturn [{ json: { count: top.length,\n  items_text: top.map((i, n) => `${n + 1}. ${i.title}\\n${i.snippet}\\n${i.link}`).join('\\n\\n'),\n  links: top.map((i, n) => `${n + 1}. ${i.title}\\n   ${i.link}`).join('\\n') } }];"
+      },
+      "id": "954b1eaa-f94c-5e71-a6f9-90a328f817ed",
+      "name": "Keep new items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a friendly weekly newsletter draft for our readers from these items: a two-sentence intro, then for each item a bold-free headline line and two sentences on why it matters. End with a one-line sign-off. Plain text.\n\nItems ({{ $json.count }}):\n{{ $json.items_text }}",
+        "hasOutputParser": true
+      },
+      "id": "fa37a817-c2b6-58b6-962c-b08228ed5d1c",
+      "name": "AI: write the digest",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "86a07d97-1e03-5ce7-8112-5e5b9b505744",
+      "name": "AI: write the digest model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1200,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"headline\": \"Short subject line\",\n  \"summary\": \"The digest text\"\n}"
+      },
+      "id": "4287ebc4-b7da-57e0-b847-fecdad904fb6",
+      "name": "AI: write the digest format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1400,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Settings').first().json.config.owner_email }}",
+        "subject": "=Newsletter draft: {{ $json.output.headline }}",
+        "emailType": "text",
+        "message": "={{ $json.output.summary }}\n\nSources:\n{{ $('Keep new items').first().json.links }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "1799692b-5d07-5a53-a17d-1cb05fec0528",
+      "name": "Email the digest",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Weekly newsletter drafter from your favourite RSS feeds\nCollects this week's posts from the feeds you follow and emails you a ready-to-edit newsletter draft with an intro and short write-ups.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "cb1fbf76-b9d7-5da9-a4d9-4f7fd19f25e7",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Open **Settings** and list your RSS feed URLs (most blogs have `/feed` or `/rss`; a YouTube channel is `https://www.youtube.com/feeds/videos.xml?channel_id=...`).\n2. Connect Gmail and OpenAI on the nodes with warnings.\n3. Run it once by hand and look at **Keep new items**, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "dbdd138e-4975-571b-b548-1db37c5454d8",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "List feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List feeds": {
+      "main": [
+        [
+          {
+            "node": "Read the feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the feed": {
+      "main": [
+        [
+          {
+            "node": "Keep new items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: write the digest model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: write the digest",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: write the digest format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: write the digest",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep new items": {
+      "main": [
+        [
+          {
+            "node": "AI: write the digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: write the digest": {
+      "main": [
+        [
+          {
+            "node": "Email the digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

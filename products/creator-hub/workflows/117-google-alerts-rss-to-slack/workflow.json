@@ -1,0 +1,199 @@
+{
+  "name": "Google Alerts and brand mentions (RSS) to Slack",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "387d10b9-6c4a-58c4-8efc-f0ebb2a41c3f",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"feeds\": [\n      \"https://www.google.com/alerts/feeds/YOUR_ID/YOUR_FEED\"\n    ],\n    \"hours_back\": 1,\n    \"keywords\": [],\n    \"max_items\": 20,\n    \"owner_email\": \"you@example.com\",\n    \"slack_channel_id\": \"C0123456789\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "4be54a21-ba04-569d-ad66-92117b9752a7",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Settings').first().json.config.feeds.map((url) => ({ json: { url } }));"
+      },
+      "id": "1f510c45-05ec-54ac-8394-1a8f4165de7d",
+      "name": "List feeds",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "id": "325701f1-16c4-5940-9a71-a04dfa01ac0c",
+      "name": "Read the feed",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Settings').first().json.config;\nconst since = Date.now() - Number(cfg.hours_back || 24) * 3600000;\nconst kws = (cfg.keywords || []).map((k) => String(k).toLowerCase()).filter(Boolean);\nconst seen = new Set();\nconst items = [];\nfor (const { json: it } of $input.all()) {\n  if (!it || !it.link || it.error) continue;\n  const t = Date.parse(it.isoDate || it.pubDate || '');\n  if (!isNaN(t) && t < since) continue;\n  if (seen.has(it.link)) continue;\n  const text = String((it.title || '') + ' ' + (it.contentSnippet || it.content || '')).replace(/<[^>]+>/g, ' ');\n  if (kws.length && !kws.some((k) => text.toLowerCase().includes(k))) continue;\n  seen.add(it.link);\n  items.push({ title: String(it.title || '').trim(), link: it.link, published: it.isoDate || it.pubDate || '',\n    source: String(it.creator || it.author || '').trim(), snippet: text.replace(/\\s+/g, ' ').trim().slice(0, 800) });\n}\nconst top = items.slice(0, Number(cfg.max_items) || 20);\nreturn top.map((i) => ({ json: i }));"
+      },
+      "id": "de77fac9-1040-53e1-ae81-7f81d9d6a630",
+      "name": "Keep new items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Settings').first().json.config.slack_channel_id }}"
+        },
+        "text": "=New mention: {{ $json.title }}\n{{ $json.link }}",
+        "otherOptions": {}
+      },
+      "id": "f9892a52-34ce-56e0-ac63-34f0f0643085",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Google Alerts and brand mentions (RSS) to Slack\nPosts every new Google Alert (or any RSS feed) to a Slack channel, so mentions of your brand never sit unread.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "319fec44-a554-5f33-92fb-499f15bc04d6",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Open **Settings** and list your RSS feed URLs (most blogs have `/feed` or `/rss`; a YouTube channel is `https://www.youtube.com/feeds/videos.xml?channel_id=...`). For Google Alerts choose **Deliver to: RSS feed** and copy the feed link.\n2. Connect Slack on **Post to Slack** and invite the app to the channel.\n3. Run it once by hand and look at **Keep new items**, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "ea3e2af1-ea45-5c57-8e6a-d4e3ceab4f6d",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "List feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List feeds": {
+      "main": [
+        [
+          {
+            "node": "Read the feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the feed": {
+      "main": [
+        [
+          {
+            "node": "Keep new items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep new items": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

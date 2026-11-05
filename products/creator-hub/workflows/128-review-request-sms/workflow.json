@@ -1,0 +1,253 @@
+{
+  "name": "Google review request by text after a finished job (Twilio)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 11
+            }
+          ]
+        }
+      },
+      "id": "b4f6e378-4a5e-5943-b985-c6f9abea5780",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"business_name\": \"Your Business\",\n    \"twilio_from_number\": \"+15550000001\",\n    \"sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"sheet_tab\": \"Jobs\",\n    \"review_link\": \"https://g.page/r/YOUR_ID/review\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "c68128d9-bad2-5aa2-ae00-b7bf57bb9f1c",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "options": {}
+      },
+      "id": "4ac5ad40-a4bf-5c84-b67c-5dc9db7c4aff",
+      "name": "Read rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const daysSince = (v) => { const t = Date.parse(v); return isNaN(t) ? null : (Date.now() - t) / 86400000; };\nconst daysUntil = (v) => { const t = Date.parse(v); return isNaN(t) ? null : (t - Date.now()) / 86400000; };\nconst has = (v) => v !== undefined && v !== null && String(v).trim() !== '';\nconst cfg = $('Settings').first().json.config;\nreturn $input.all().filter((item) => {\n  const r = item.json;\n  return (String(r.status).toLowerCase() === 'done' && !has(r.review_sms_sent) && has(r.phone) && daysSince(r.completed_at) !== null && daysSince(r.completed_at) >= 1 && daysSince(r.completed_at) <= 14);\n}).slice(0, 50);"
+      },
+      "id": "d71cd1a9-b63c-587e-827e-934d2a273b3b",
+      "name": "Find rows to text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "from": "={{ $('Settings').first().json.config.twilio_from_number }}",
+        "to": "={{ $json.phone }}",
+        "message": "=Hi {{ $json.name }}, thanks for choosing {{ $('Settings').first().json.config.business_name }}! If you were happy, a quick review helps us a lot: {{ $('Settings').first().json.config.review_link }} Reply STOP to opt out.",
+        "options": {}
+      },
+      "id": "64c5246e-b561-5454-a237-3b4e5435d085",
+      "name": "Send the text",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        960,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const stamp = new Date().toISOString();\nreturn $('Find rows to text').all().map((item) => ({ json: { row_number: item.json.row_number, \"review_sms_sent\": stamp } }));"
+      },
+      "id": "e3cb1b16-d193-5681-9b16-b2adc3426be8",
+      "name": "Mark rows as done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "f9ac67da-ef45-50c4-90c8-c9b02d0596db",
+      "name": "Update rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Google review request by text after a finished job (Twilio)\nA day after a job is marked done, texts the customer a thank-you with your review link. Once per customer.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "972ae17c-39d8-5d8e-9820-6748305c08c8",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Make a sheet tab **Jobs** with the headers in `sheet-headers.csv`. Phone numbers in international format (+15551234567).\n2. Open **Settings**: your business name, Twilio number, sheet URL.\n3. Connect Twilio and Google Sheets. US numbers need A2P 10DLC registration in Twilio before texting.\n4. Only text people who agreed to receive texts, and honour STOP replies. Run once with your own number, then switch to **Active**.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "984c8e39-b28e-5fb8-8f5c-30b667cdd6f1",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read rows": {
+      "main": [
+        [
+          {
+            "node": "Find rows to text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find rows to text": {
+      "main": [
+        [
+          {
+            "node": "Send the text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send the text": {
+      "main": [
+        [
+          {
+            "node": "Mark rows as done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark rows as done": {
+      "main": [
+        [
+          {
+            "node": "Update rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

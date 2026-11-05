@@ -1,0 +1,261 @@
+{
+  "name": "Telegram FAQ bot that answers from your Google Sheet",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "e00a1ba6-f6fa-5992-9299-dcbcf64a8b56",
+      "name": "Telegram message",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "d8d9971a-e74b-549e-b081-94246ac0e901"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"business_name\": \"Your Business\",\n    \"tone\": \"friendly and short\",\n    \"phone_for_humans\": \"(555) 010-0000\",\n    \"booking_link\": \"https://cal.com/your-business\",\n    \"knowledge_sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"knowledge_tab\": \"Knowledge\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "2ffa6aea-b95f-585e-a0fd-3296799d548e",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.knowledge_sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.knowledge_tab }}"
+        },
+        "options": {}
+      },
+      "id": "d9a472a7-5228-5449-96e6-ed7355e72950",
+      "name": "Load FAQ sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $('Telegram message').first().json.message || {};\nconst text = String(msg.text || '').trim();\nif (!text) return [];\nconst lines = $input.all().map((i) => Object.entries(i.json).filter(([k, v]) => k !== 'row_number' && String(v ?? '').trim() !== '').map(([, v]) => String(v).trim()).join(': ')).filter(Boolean);\nreturn [{ json: { chat_id: msg.chat.id, first_name: (msg.from && msg.from.first_name) || '', text: text.slice(0, 2000),\n  is_start: text === '/start', knowledge: lines.join('\\n') || '(The FAQ sheet is empty.)' } }];"
+      },
+      "id": "8c61e619-1c85-53ce-8af0-ec37ba84b26c",
+      "name": "Prepare the question",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You answer customer questions for {{ $('Settings').first().json.config.business_name }} on Telegram. Tone: {{ $('Settings').first().json.config.tone }}. Reply in 1-3 short sentences, plain text, in the customer's language.\nUse ONLY these facts:\n{{ $json.knowledge }}\n\nBooking link: {{ $('Settings').first().json.config.booking_link }}\nPhone for a person: {{ $('Settings').first().json.config.phone_for_humans }}\nIf the answer is not in the facts, say you're not sure and give the phone number. Never invent prices or promises.\nIf the message is /start, greet {{ $json.first_name || 'them' }} and say what you can help with.\n\nCustomer message: {{ $json.text }}",
+        "hasOutputParser": true
+      },
+      "id": "82b2e430-507c-572a-923f-9e5aedd1e7c6",
+      "name": "AI: answer from the FAQ",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "ade6c14b-20b1-5a5d-913e-eefa47c7a141",
+      "name": "AI: answer from the FAQ model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        960,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"reply\": \"Hi! We're open 9am-5pm Monday to Friday.\"\n}"
+      },
+      "id": "6c86dee9-395e-59c5-adda-fcdf050820a2",
+      "name": "AI: answer from the FAQ format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1160,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Prepare the question').item.json.chat_id }}",
+        "text": "={{ $json.output.reply }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "5bf27ee8-ce03-56db-b5de-72135d46066d",
+      "name": "Reply on Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Telegram FAQ bot that answers from your Google Sheet\nA Telegram bot that answers customer questions using only the facts in your Google Sheet, and gives your phone number when it doesn't know.",
+        "height": 300,
+        "width": 420,
+        "color": 4
+      },
+      "id": "8745a9bb-9ad5-54b6-9ee9-2fd950f4f0b6",
+      "name": "Note: what this does",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup (about 10 minutes)\n1. Create a bot with **@BotFather** in Telegram and copy its token into a Telegram credential in n8n (you paste it, nobody else).\n2. Make a Google Sheet with a tab **Knowledge** and two headers: `topic`, `answer`. Add your real facts.\n3. Open **Settings**: business name, phone, booking link, sheet URL.\n4. Connect Telegram, Google Sheets and OpenAI, then switch to **Active** and message your bot.",
+        "height": 300,
+        "width": 480,
+        "color": 7
+      },
+      "id": "cb196ebf-5add-545c-adee-add161e2f77c",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "AI: answer from the FAQ model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: answer from the FAQ",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: answer from the FAQ format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: answer from the FAQ",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram message": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Load FAQ sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load FAQ sheet": {
+      "main": [
+        [
+          {
+            "node": "Prepare the question",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare the question": {
+      "main": [
+        [
+          {
+            "node": "AI: answer from the FAQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: answer from the FAQ": {
+      "main": [
+        [
+          {
+            "node": "Reply on Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

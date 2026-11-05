@@ -27,6 +27,10 @@ def needs_from(w):
     if any(x.startswith("n8n-nodes-base.gmail") for x in t): out.append("Gmail")
     if "n8n-nodes-base.slack" in t: out.append("Slack")
     if "@n8n/n8n-nodes-langchain.lmChatOpenAi" in t: out.append("OpenAI API key")
+    for typ, label in (("n8n-nodes-base.telegram", "Telegram bot (from @BotFather)"), ("n8n-nodes-base.twilio", "Twilio account and phone number"),
+                       ("n8n-nodes-base.hubspot", "HubSpot (private app token)"), ("n8n-nodes-base.airtable", "Airtable (personal access token)"),
+                       ("n8n-nodes-base.notion", "Notion (internal integration shared with the database)"), ("n8n-nodes-base.googleDrive", "Google Drive")):
+        if any(x.startswith(typ) for x in t): out.append(label)
     return out
 
 
@@ -354,4 +358,5 @@ def build_E(spec):
     return w, cols, needs_from(w)
 
 
-BUILDERS = {"I": build_I, "S": build_S, "D": build_D, "G": build_G, "M": build_M, "E": build_E}
+BUILDERS = {"I": build_I, "S": build_S, "D": build_D, "G": build_G, "M": build_M, "E": build_E,
+            "X": lambda spec: spec["build"](spec)}
