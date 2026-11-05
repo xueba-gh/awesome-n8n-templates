@@ -1,0 +1,302 @@
+{
+  "name": "AI FAQ Chatbot Lite: website chat that answers from your Google Sheet",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "mode": "hostedChat",
+        "initialMessages": "Hi there! 👋\nI can answer questions about opening hours, prices, services and bookings. How can I help?",
+        "options": {
+          "title": "Ask us anything",
+          "subtitle": "We usually answer instantly",
+          "inputPlaceholder": "Type your question...",
+          "responseMode": "lastNode",
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "72005209-ea2a-5684-bb4a-01450c9883dd",
+      "name": "Website chat",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        100
+      ],
+      "webhookId": "b1a6b4e9-2cfc-5147-93fe-888709454cb7"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"config\": {\n    \"business_name\": \"Acme Dental\",\n    \"assistant_name\": \"Ava\",\n    \"what_we_do\": \"Family dental clinic: check-ups, cleaning, whitening, fillings, emergency appointments\",\n    \"tone\": \"warm, clear and concise\",\n    \"booking_link\": \"https://cal.com/your-business\",\n    \"phone_for_humans\": \"(555) 010-0000\",\n    \"knowledge_sheet_url\": \"https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit\",\n    \"knowledge_tab\": \"Knowledge\"\n  }\n}",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "732a8cf8-6489-5e04-90ff-98fd745f0809",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Website chat message -> { channel, session_id, text }\nconst j = $input.first().json;\nif (j.action && j.action !== 'sendMessage') return []; // the chat widget asking to reload an old session\nreturn [{ json: { channel: 'website', session_id: 'web-' + j.sessionId, text: String(j.chatInput || '').slice(0, 2000), customer_name: '' } }];"
+      },
+      "id": "097d4349-cbf4-5256-9c6d-71fd4da2f490",
+      "name": "Read the message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Settings').first().json.config.knowledge_sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Settings').first().json.config.knowledge_tab }}"
+        },
+        "filtersUI": {},
+        "options": {}
+      },
+      "id": "e3327d96-47c4-5e8c-806a-2a0b4a101a07",
+      "name": "Load FAQ sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        660,
+        100
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Turns every row of the FAQ sheet into \"Topic: answer\" lines for the assistant.\nconst lines = [];\nfor (const { json: row } of $input.all()) {\n  const values = Object.entries(row).filter(([k, v]) => k !== 'row_number' && String(v ?? '').trim() !== '');\n  if (!values.length) continue;\n  lines.push(values.map(([k, v]) => String(v).trim()).join(': '));\n}\nreturn [{ json: { ...$('Read the message').first().json, knowledge: lines.join('\\n') || '(The FAQ sheet is empty.)' } }];"
+      },
+      "id": "07545a06-67c6-515e-b62d-22720c974114",
+      "name": "Prepare FAQ",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "options": {
+          "systemMessage": "=You are {{ $('Settings').first().json.config.assistant_name }}, the assistant for {{ $('Settings').first().json.config.business_name }} ({{ $('Settings').first().json.config.what_we_do }}).\nYou are chatting with a customer on the {{ $json.channel }}{{ $json.customer_name ? ' (their name is ' + $json.customer_name + ')' : '' }}. Today is {{ $now.toFormat('cccc d LLLL yyyy') }}.\n\nFACTS YOU MAY USE (from the business's FAQ sheet):\n{{ $json.knowledge }}\n\nBooking link: {{ $('Settings').first().json.config.booking_link }}\nPhone for a human: {{ $('Settings').first().json.config.phone_for_humans }}\n\nHOW TO ANSWER\n- Tone: {{ $('Settings').first().json.config.tone }}. Keep answers short: 1-3 sentences, plain text, no markdown headings.\n- Only use the facts above. If the answer is not there, say you're not sure and give the phone number for a human. Never invent prices, availability, medical/legal advice, discounts or promises.\n- When someone wants to book, give the booking link.\n- Reply in the language the customer writes in.\n\nIF THEY WANT A PERSON\nWhen the customer asks for a person, a call back, or a quote you can't give, give them the phone number above and the booking link.",
+          "maxIterations": 3
+        }
+      },
+      "id": "83b3a38e-038d-536a-88fa-00cb4e37be19",
+      "name": "AI assistant",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1120,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "00b80718-97ac-5225-b8bf-986cf117b99e",
+      "name": "OpenAI model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1060,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Read the message').first().json.session_id }}",
+        "contextWindowLength": 12
+      },
+      "id": "a3488ea7-eeb9-5b21-9b7e-26ecb96d6aec",
+      "name": "Conversation memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1220,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9b645755-4140-4af3-bfa2-cd61bee08964",
+              "name": "output",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8c9b4a02-67f3-5e78-8def-494280d31984",
+      "name": "Reply on website",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## AI FAQ Chatbot Lite\nA chat page for your website that answers customer questions using only the facts in your Google Sheet, and remembers the last 12 messages of the conversation. Edit the sheet and the bot changes instantly.\n\n**Setup (about 10 minutes)**\n1. Make a Google Sheet with a tab `Knowledge` and two headers: topic, answer. Add your real hours, prices, services and policies.\n2. Open **Settings**: business name, booking link, phone number, sheet URL.\n3. Connect credentials: OpenAI, Google Sheets.\n4. Activate, open **Website chat** and copy the chat URL. Link to it from your site, or embed it.",
+        "height": 420,
+        "width": 500,
+        "color": 4
+      },
+      "id": "9c4153de-2d24-5bde-bfc7-4b704c40f207",
+      "name": "Note: start here",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -220
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Full version adds\n- WhatsApp channel (text and voice-note handling)\n- Hand-over to a human: collects name and phone/email, logs the request in a `Conversations` tab and emails you\n- Website chat-bubble embed snippet\n\n**Want it installed for you?** I set up the full version on your own accounts. Message me through my n8n Creator profile.",
+        "height": 300,
+        "width": 420,
+        "color": 6
+      },
+      "id": "fafc0ed8-6903-518b-9843-ab1ad1b32861",
+      "name": "Note: full version",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1660,
+        -60
+      ]
+    }
+  ],
+  "connections": {
+    "Website chat": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read the message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the message": {
+      "main": [
+        [
+          {
+            "node": "Load FAQ sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load FAQ sheet": {
+      "main": [
+        [
+          {
+            "node": "Prepare FAQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare FAQ": {
+      "main": [
+        [
+          {
+            "node": "AI assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI assistant",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI assistant",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI assistant": {
+      "main": [
+        [
+          {
+            "node": "Reply on website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
